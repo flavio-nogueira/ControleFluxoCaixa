@@ -1,0 +1,74 @@
+# Desabilita autenticação HTTP (não usaremos login)
+auth_enabled: false
+
+server:
+  # Porta onde o Loki escuta requisições HTTP
+  http_listen_port: 3100
+
+common:
+  # Prefixo de URL
+  path_prefix: /loki
+  # Quantas cópias manter de cada chunk
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+ingester:
+  lifecycler:
+    address: 127.0.0.1
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    final_sleep: 0s
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
+  max_transfer_retries: 0
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  boltdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/index_cache
+    shared_store: filesystem
+  filesystem:
+    directory: /loki/chunks
+
+# ================================
+# BLOCO DE COMPACTOR (retenção)
+# ================================
+compactor:
+  # Diretório para trabalho temporário
+  working_directory: /loki/compactor
+  # Mesma store do boltdb-shipper
+  shared_store: filesystem
+  # Habilita remoção automática de dados antigos
+  retention_enabled: true
+  # Atraso antes de excluir dados expirados
+  retention_delete_delay: 2h
+
+# ================================
+# BLOCO DE LIMITES (retenção)
+# ================================
+limits_config:
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  retention_period: 360h   # 360h = 15 dias
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100

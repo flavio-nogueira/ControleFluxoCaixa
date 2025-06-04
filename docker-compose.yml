@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  mysql_identity:
+    image: mysql:8.0
+    container_name: mysql_identity
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysqldata_identity:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-net
+
+  controlefluxocaixa.api:
+    build:
+      context: ./ControleFluxoCaixa.API
+      dockerfile: Dockerfile
+    image: controlefluxocaixa_api:latest
+    container_name: controlefluxocaixa_api
+    depends_on:
+      mysql_identity:
+        condition: service_healthy
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "https://+:443;http://+:80"
+      ConnectionStrings__IdentityConnection: "server=mysql_identity;port=3306;database=dbfluxocaixa_identity;user=root;password=root"
+    ports:
+      - "5000:80"
+      - "5001:443"
+    volumes:
+      - ~/.aspnet/https:/root/.aspnet/https:ro
+    networks:
+      - app-net
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - app-net
+
+  redis_exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    restart: always
+    command:
+      - --redis.addr=redis:6379
+      - --web.listen-address=:9121
+    ports:
+      - "9121:9121"
+    networks:
+      - app-net
+    depends_on:
+      - redis
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-net
+
+  mongo_exporter:
+    image: bitnami/mongodb-exporter:latest
+    container_name: mongo-exporter
+    restart: always
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_CONNECTION_TIMEOUT=5s
+    ports:
+      - "9216:9216"
+    networks:
+      - app-net
+    depends_on:
+      - mongodb
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    ports:
+      - "9090:9090"
+    environment:
+      - TZ=America/Sao_Paulo
+    networks:
+      - app-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    networks:
+      - app-net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - app-net
+
+  loki-init:
+    image: busybox:latest
+    container_name: loki-init
+    restart: "no"
+    command: >
+      sh -c "chown -R 10001:10001 /loki/index /loki/chunks /loki/compactor"
+    volumes:
+      - loki_index:/loki/index
+      - loki_chunks:/loki/chunks
+      - loki_compactor:/loki/compactor
+    networks:
+      - app-net
+
+  loki:
+    image: grafana/loki:2.8.2
+    container_name: loki
+    restart: always
+    depends_on:
+      - loki-init
+    ports:
+      - "3100:3100"
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+      - -config.expand-env=true
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_index:/loki/index
+      - loki_chunks:/loki/chunks
+      - loki_compactor:/loki/compactor
+    networks:
+      - app-net
+
+  promtail:
+    image: grafana/promtail:2.8.2
+    container_name: promtail
+    restart: always
+    volumes:
+      - /var/log:/var/log
+      - ./promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - ./ControleFluxoCaixa.API/logs-fallback:/app/logs-fallback:ro
+    command:
+      - -config.file=/etc/promtail/config.yaml
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
+
+volumes:
+  mysqldata_identity:
+  mongo-data:
+  loki_index:
+  loki_chunks:
+  loki_compactor:  
+
+# -----------------------------
+# Para subir tudo:
+# docker-compose -f docker-compose.yml up -d --build --remove-orphans

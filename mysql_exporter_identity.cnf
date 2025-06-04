@@ -1,0 +1,6 @@
+[client]
+# Conexão ao banco “Identity”
+user=fluxouseridentity
+password=SenhaForte!456
+host=mysql_identity
+port=3306

@@ -1,0 +1,9 @@
+[client]
+# Conexão ao banco “App”
+user=fluxouser
+password=userpass123
+host=mysql_app
+port=3306
+
+# (Opcional) se usar um socket:
+# socket=/var/run/mysqld/mysqld.sock

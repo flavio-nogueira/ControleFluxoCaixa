@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysqld-exporter:9104']
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis_exporter:9121']
+
+  - job_name: 'controlefluxocaixa-api'
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: ['api:80']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
