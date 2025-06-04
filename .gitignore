@@ -1,0 +1,22 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/bin/Debug
+/ControleFluxoCaixa.API/bin/Debug/net8.0
+/ControleFluxoCaixa.API/obj
+/ControleFluxoCaixa.Application/bin/Debug/net8.0
+*.gitkeep
+/ControleFluxoCaixa.Application/obj
+/ControleFluxoCaixa.CrossCutting/obj
+/ControleFluxoCaixa.Domain/bin/Debug/net8.0
+/ControleFluxoCaixa.Domain/obj
+/ControleFluxoCaixa.Infrastructure/bin/Debug/net8.0
+/ControleFluxoCaixa.Infrastructure/obj
+/ControleFluxoCaixa.Messaging/obj
+/ControleFluxoCaixa.MongoDB/obj
+/ControleFluxoCaixa.Tests.Integration/bin/Debug/net8.0
+/ControleFluxoCaixa.Tests.Integration/obj
+/ControleFluxoCaixa.Tests.Unit/bin/Debug/net8.0
+/ControleFluxoCaixa.Tests.Unit/obj
+/obj
