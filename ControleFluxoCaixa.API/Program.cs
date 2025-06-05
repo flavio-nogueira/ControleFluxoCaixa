@@ -1,19 +1,16 @@
 ﻿// Importa as configurações de injeção de dependência personalizadas da aplicação
 using ControleFluxoCaixa.Application.Settings.ControleFluxoCaixa.Application.Settings;
 using ControleFluxoCaixa.Infrastructure.IoC;
-
 // Importa o inicializador responsável por aplicar migrations e executar seeds no banco de dados
 using ControleFluxoCaixa.Infrastructure.IoC.DataBase;
+using ControleFluxoCaixa.Infrastructure.IoC.Observability;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using ControleFluxoCaixa.Infrastructure.IoC.Observability;
-
 // Importa os pacotes para logs estruturados e métricas
 using Prometheus;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
-using System.Security.Cryptography;
 
 // Cria o builder da aplicação Web, responsável por configurar serviços e middlewares
 var builder = WebApplication.CreateBuilder(args);
