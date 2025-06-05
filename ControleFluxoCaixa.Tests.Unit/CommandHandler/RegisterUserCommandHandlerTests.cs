@@ -34,7 +34,7 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
             Assert.Equal(command.FullName, result.FullName);
         }
 
-        [Fact(DisplayName = "❌ Deve falhar se senha estiver fora do padrão")]
+        [Fact(DisplayName = "Deve falhar se senha estiver fora do padrão")]
         public async Task Deve_falhar_ao_registrar_com_senha_fora_do_padrao()
         {
             // Arrange
@@ -56,7 +56,7 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
         }
 
 
-        [Fact(DisplayName = "❌ Deve falhar se e-mail for inválido")]
+        [Fact(DisplayName = "Deve falhar se e-mail for inválido")]
         public async Task Deve_falhar_ao_registrar_com_email_invalido()
         {
             // Arrange
