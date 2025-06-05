@@ -1,6 +1,5 @@
 ﻿using ControleFluxoCaixa.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;

@@ -20,3 +20,6 @@
 /ControleFluxoCaixa.Tests.Unit/obj
 /obj
 /ControleFluxoCaixa.Tests.Integration/bin/Debug/net8.0
+/ControleFluxoCaixa.CrossCutting/bin/Debug/net8.0
+/ControleFluxoCaixa.Messaging/bin/Debug/net8.0
+/ControleFluxoCaixa.MongoDB/bin/Debug/net8.0

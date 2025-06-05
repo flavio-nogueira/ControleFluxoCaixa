@@ -1,12 +1,19 @@
-﻿using ControleFluxoCaixa.Application.DTOs;
+﻿// AuthController.cs (Refatorado com CQRS, Logs, Métricas, Polly)
+using ControleFluxoCaixa.Application.Commands.Auth.DeleteUser;
+using ControleFluxoCaixa.Application.Commands.Auth.Login;
+using ControleFluxoCaixa.Application.Commands.Auth.RefreshToken;
+using ControleFluxoCaixa.Application.Commands.Auth.RegisterUser;
+using ControleFluxoCaixa.Application.Commands.Auth.UpdateUser;
+using ControleFluxoCaixa.Application.DTOs;
 using ControleFluxoCaixa.Application.DTOs.Auth;
-using ControleFluxoCaixa.Application.Interfaces.Auth;
-using ControleFluxoCaixa.Domain.Entities.User;
+using ControleFluxoCaixa.Application.Queries.Auth.GetAllUsers;
+using ControleFluxoCaixa.Application.Queries.Auth.GetUserById;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Distributed;
-using System.Text.Json;
+using Polly;
+using Polly.Retry;
+using Prometheus;
 
 namespace ControleFluxoCaixa.API.Controllers
 {
@@ -14,218 +21,202 @@ namespace ControleFluxoCaixa.API.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ITokenService _tokenSvc;
-        private readonly IRefreshTokenService _rtSvc;
-        private readonly IDistributedCache _cache;
+        private readonly IMediator _mediator;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(
-            UserManager<ApplicationUser> userManager,
-            ITokenService tokenSvc,
-            IRefreshTokenService rtSvc,
-            IDistributedCache cache)
+        // Métricas Prometheus
+        private static readonly Counter LoginCounter = Metrics.CreateCounter("auth_login_requests_total", "Total de requisições de login");
+        private static readonly Histogram RequestDuration = Metrics.CreateHistogram(
+            "auth_request_duration_seconds",
+            "Duração das requisições de autenticação",
+            new HistogramConfiguration { LabelNames = new[] { "method", "endpoint", "status" } });
+
+        // Policy de Retry para chamadas críticas (como cache ou banco externo)
+        private static readonly AsyncRetryPolicy RetryPolicy = Policy
+            .Handle<Exception>()
+            .WaitAndRetryAsync(3, attempt => TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt)));
+
+        public AuthController(IMediator mediator, ILogger<AuthController> logger)
         {
-            _userManager = userManager;
-            _tokenSvc = tokenSvc;
-            _rtSvc = rtSvc;
-            _cache = cache;
+            _mediator = mediator;
+            _logger = logger;
         }
 
         /// <summary>
-        /// Faz login e retorna um JWT + refresh token.
+        /// Realiza login e retorna JWT + refresh token.
         /// </summary>
         [HttpPost("login"), AllowAnonymous]
-        public async Task<IActionResult> Login([FromBody] LoginDto dto)
+        [ProducesResponseType(typeof(RefreshDto), 200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> Login([FromBody] LoginDto dto, CancellationToken cancellationToken)
         {
-            var user = await _userManager.FindByEmailAsync(dto.Email);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
-                return Unauthorized(new { message = "Usuário ou senha inválidos." });
-
-            var jwt = await _tokenSvc.GenerateAccessTokenAsync(user);
-            var refresh = await _rtSvc.GenerateRefreshTokenAsync(
-                              user, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
-
-            // Contador de logins bem-sucedidos
-            var loginKey = $"logins:{user.Id}";
-            var count = int.TryParse(await _cache.GetStringAsync(loginKey), out var c) ? c + 1 : 1;
-            await _cache.SetStringAsync(loginKey, count.ToString(), new DistributedCacheEntryOptions
+            var timer = RequestDuration.WithLabels("POST", "login", "").NewTimer();
+            LoginCounter.Inc();
+            try
             {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
-            });
-
-            return Ok(new RefreshDto
+                var result = await _mediator.Send(new LoginCommand(dto.Email, dto.Password, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"), cancellationToken);
+                timer.ObserveDuration();
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException)
             {
-                AccessToken = jwt,
-                RefreshToken = refresh.Token,
-                ExpiresAt = refresh.Expires
-            });
+                timer.ObserveDuration();
+                return Unauthorized("Credenciais inválidas.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro interno ao tentar logar com o e-mail {Email}", dto.Email);
+                timer.ObserveDuration();
+                return StatusCode(500, "Erro interno no login.");
+            }
         }
 
         /// <summary>
-        /// Renova o JWT usando um refresh token válido.
+        /// Renova o token JWT com base em um refresh token válido.
         /// </summary>
         [HttpPost("refresh"), AllowAnonymous]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshDto dto)
+        [ProducesResponseType(typeof(RefreshDto), 200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> Refresh([FromBody] RefreshDto dto, CancellationToken cancellationToken)
         {
-            var blKey = $"rt_blacklist:{dto.RefreshToken}";
-            if (await _cache.GetStringAsync(blKey) != null)
-                return Unauthorized("Refresh token já consumido.");
-
-            var validation = await _rtSvc.ValidateAndConsumeRefreshTokenAsync(dto.RefreshToken);
-            if (!validation.IsValid || validation.User == null)
-                return Unauthorized(new { message = "RefreshToken inválido ou expirado." });
-
-            // Marca como consumido
-            await _cache.SetStringAsync(blKey, "used", new DistributedCacheEntryOptions
+            var timer = RequestDuration.WithLabels("POST", "refresh", "").NewTimer();
+            try
             {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(7)
-            });
-
-            var jwt = await _tokenSvc.GenerateAccessTokenAsync(validation.User);
-            var refresh = await _rtSvc.GenerateRefreshTokenAsync(
-                              validation.User, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
-
-            return Ok(new RefreshDto
+                var result = await _mediator.Send(new RefreshTokenCommand(dto.RefreshToken), cancellationToken);
+                timer.ObserveDuration();
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException)
             {
-                AccessToken = jwt,
-                RefreshToken = refresh.Token,
-                ExpiresAt = refresh.Expires
-            });
+                timer.ObserveDuration();
+                return Unauthorized("Token inválido ou já utilizado.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao renovar token");
+                timer.ObserveDuration();
+                return StatusCode(500, "Erro interno ao renovar token.");
+            }
         }
 
         /// <summary>
         /// Registra um novo usuário.
         /// </summary>
         [HttpPost("register"), AllowAnonymous]
-        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+        [ProducesResponseType(typeof(UserDto), 201)]
+        [ProducesResponseType(409)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> Register([FromBody] RegisterDto dto, CancellationToken cancellationToken)
         {
-            if (await _userManager.FindByEmailAsync(dto.Email) != null)
-                return Conflict("E-mail já cadastrado.");
-
-            var user = new ApplicationUser
+            try
             {
-                UserName = dto.Email,
-                Email = dto.Email,
-                FullName = dto.FullName
-            };
-            var res = await _userManager.CreateAsync(user, dto.Password);
-            if (!res.Succeeded)
-                return BadRequest(res.Errors);
-
-            // Invalida cache de listagem
-            await _cache.RemoveAsync("users:all");
-
-            return CreatedAtAction(nameof(GetById), new { id = user.Id },
-                new UserDto(user.Id.ToString(), user.Email, user.FullName));
-        }
-
-        /// <summary>
-        /// Lista todos os usuários.
-        /// Usa cache para acelerar leituras frequentes.
-        /// </summary>
-        [HttpGet, AllowAnonymous]
-        public async Task<IActionResult> GetAll()
-        {
-            const string key = "users:all";
-            var cached = await _cache.GetStringAsync(key);
-            if (cached != null)
-            {
-                var list = JsonSerializer.Deserialize<List<UserDto>>(cached)!;
-                return Ok(list);
+                var result = await _mediator.Send(new RegisterUserCommand(dto.Email, dto.Password, dto.FullName), cancellationToken);
+                return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
             }
-
-            var users = _userManager.Users
-                .Select(u => new UserDto(u.Id.ToString(), u.Email, u.FullName))
-                .ToList();
-
-            await _cache.SetStringAsync(key, JsonSerializer.Serialize(users), new DistributedCacheEntryOptions
+            catch (InvalidOperationException ex)
             {
-                SlidingExpiration = TimeSpan.FromMinutes(5)
-            });
-
-            return Ok(users);
-        }
-
-        /// <summary>
-        /// Obtém dados de um usuário pelo ID.
-        /// Usa cache para acelerar leituras.
-        /// </summary>
-        [HttpGet("{id}"), AllowAnonymous] //Authorize
-        public async Task<IActionResult> GetById(string id)
-        {
-            var key = $"user:{id}";
-            var cached = await _cache.GetStringAsync(key);
-            if (cached != null)
-            {
-                var dto = JsonSerializer.Deserialize<UserDto>(cached)!;
-                return Ok(dto);
+                return Conflict(ex.Message);
             }
-
-            var user = await _userManager.FindByIdAsync(id);
-            if (user == null) return NotFound();
-
-            var result = new UserDto(user.Id.ToString(), user.Email, user.FullName);
-            await _cache.SetStringAsync(key, JsonSerializer.Serialize(result), new DistributedCacheEntryOptions
+            catch (Exception ex)
             {
-                SlidingExpiration = TimeSpan.FromMinutes(5)
-            });
-
-            return Ok(result);
+                _logger.LogError(ex, "Erro ao registrar novo usuário");
+                return StatusCode(500, "Erro interno ao registrar usuário.");
+            }
         }
 
         /// <summary>
-        /// Atualiza e/ou altera senha de um usuário.
-        /// Invalida cache nas chaves relacionadas.
+        /// Atualiza dados de um usuário e/ou redefine a senha.
         /// </summary>
         [HttpPut, Authorize]
-        public async Task<IActionResult> Update([FromBody] UpdateUserDto dto)
+        [ProducesResponseType(204)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> Update([FromBody] UpdateUserDto dto, CancellationToken cancellationToken)
         {
-            var user = await _userManager.FindByIdAsync(dto.Id);
-            if (user == null) return NotFound();
-
-            if (!string.IsNullOrWhiteSpace(dto.Email) && dto.Email != user.Email)
+            try
             {
-                user.Email = dto.Email;
-                user.UserName = dto.Email;
+                await _mediator.Send(new UpdateUserCommand(dto.Id, dto.Email, dto.FullName, dto.NewPassword), cancellationToken);
+                return NoContent();
             }
-            if (!string.IsNullOrWhiteSpace(dto.FullName))
-                user.FullName = dto.FullName;
-
-            var up = await _userManager.UpdateAsync(user);
-            if (!up.Succeeded) return BadRequest(up.Errors);
-
-            if (!string.IsNullOrWhiteSpace(dto.NewPassword))
+            catch (KeyNotFoundException)
             {
-                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                var rp = await _userManager.ResetPasswordAsync(user, token, dto.NewPassword);
-                if (!rp.Succeeded) return BadRequest(rp.Errors);
+                return NotFound();
             }
-
-            // Invalida cache
-            await _cache.RemoveAsync($"user:{dto.Id}");
-            await _cache.RemoveAsync("users:all");
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao atualizar usuário: {UserId}", dto.Id);
+                return StatusCode(500, "Erro interno ao atualizar usuário.");
+            }
         }
 
         /// <summary>
-        /// Remove um usuário pelo ID.
-        /// Invalida cache após exclusão.
+        /// Remove um usuário existente.
         /// </summary>
         [HttpDelete("{id}"), Authorize]
-        public async Task<IActionResult> Delete(string id)
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
         {
-            var user = await _userManager.FindByIdAsync(id);
-            if (user == null) return NotFound();
+            try
+            {
+                await _mediator.Send(new DeleteUserCommand(id), cancellationToken);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao excluir usuário: {UserId}", id);
+                return StatusCode(500, "Erro interno ao excluir usuário.");
+            }
+        }
 
-            var del = await _userManager.DeleteAsync(user);
-            if (!del.Succeeded) return BadRequest(del.Errors);
+        /// <summary>
+        /// Retorna todos os usuários em cache ou, caso não exista, busca no banco e armazena em cache.
+        /// </summary>
+        [HttpGet, Authorize]
+        [ProducesResponseType(typeof(IEnumerable<UserDto>), 200)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await RetryPolicy.ExecuteAsync(() => _mediator.Send(new GetAllUsersQuery(), cancellationToken));
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao recuperar todos os usuários");
+                return StatusCode(500, "Erro interno ao recuperar usuários.");
+            }
+        }
 
-            // Invalida cache
-            await _cache.RemoveAsync($"user:{id}");
-            await _cache.RemoveAsync("users:all");
-
-            return NoContent();
+        /// <summary>
+        /// Retorna os dados de um usuário pelo ID.
+        /// </summary>
+        [HttpGet("{id}"), Authorize]
+        [ProducesResponseType(typeof(UserDto), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> GetById(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _mediator.Send(new GetUserByIdQuery(id), cancellationToken);
+                if (result == null) return NotFound();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao recuperar usuário por ID: {UserId}", id);
+                return StatusCode(500, "Erro interno ao recuperar usuário.");
+            }
         }
     }
 }
