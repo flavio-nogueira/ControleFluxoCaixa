@@ -2,15 +2,13 @@
 using ControleFluxoCaixa.Application.Interfaces.Cache;
 using ControleFluxoCaixa.Domain.Entities.User;
 using ControleFluxoCaixa.Tests.Shared.Helpers;
-using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
 {
-    public class UpdateUserCommandHandlerTests 
+    public class UpdateUserCommandHandlerTests
     {
         [Fact(DisplayName = "Deve atualizar e-mail e senha do usuário com sucesso")]
         public async Task Deve_atualizar_usuario_com_sucesso()
@@ -79,7 +77,7 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
                 Email = "erro@teste.com",
                 FullName = "Antigo"
             };
-          
+
             var userManager = UserManagerMockHelper.CreateMock();
             userManager.Setup(x => x.FindByIdAsync(userId)).ReturnsAsync(user);
             userManager.Setup(x => x.UpdateAsync(It.IsAny<ApplicationUser>()))
@@ -99,7 +97,7 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
         {
             return new UpdateUserCommandHandler(
                 userManager.Object,
-                Mock.Of<IGenericCacheService>(),
+                Mock.Of<ICacheService>(),
                 Mock.Of<ILogger<UpdateUserCommandHandler>>()
             );
         }
