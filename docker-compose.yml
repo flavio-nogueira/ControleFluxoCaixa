@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Banco de dados para identidade (auth)
   mysql_identity:
     image: mysql:8.0
     container_name: mysql_identity
@@ -19,6 +20,23 @@ services:
     networks:
       - app-net
 
+  # Exportador Prometheus para o mysql_identity
+  mysqld_exporter_identity:
+    image: prom/mysqld-exporter:latest
+    container_name: mysqld_exporter_identity
+    restart: always
+    volumes:
+      - ./mysql-identity-my.cnf:/home/.my.cnf:ro
+    environment:
+      - MYSQLD_EXPORTER_CONFIG_MY_CNF=/home/.my.cnf
+    ports:
+      - "9105:9104"
+    depends_on:
+      - mysql_identity
+    networks:
+      - app-net
+
+  # API principal do sistema
   controlefluxocaixa.api:
     build:
       context: ./ControleFluxoCaixa.API
@@ -28,19 +46,49 @@ services:
     depends_on:
       mysql_identity:
         condition: service_healthy
+      mysql_fluxocaixa:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
     restart: always
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: "https://+:443;http://+:80"
+      ASPNETCORE_URLS: "https://+:443"
+
+      # Connection Strings
       ConnectionStrings__IdentityConnection: "server=mysql_identity;port=3306;database=dbfluxocaixa_identity;user=root;password=root"
+      ConnectionStrings__FluxoCaixaConnection: "server=mysql_fluxocaixa;port=3306;database=dbfluxocaixa;user=root;password=root"
+
+      # Configuração RabbitMQ
+      RabbitMqSettings__Inclusao__AmqpUri: amqp://guest:guest@rabbitmq:5672
+      RabbitMqSettings__Inclusao__ExchangeName: lancamento.exchange
+      RabbitMqSettings__Inclusao__QueueName: lancamento.inclusao.queue
+      RabbitMqSettings__Inclusao__RoutingKey: lancamento.inclusao
+      RabbitMqSettings__Inclusao__RetryQueueName: lancamento.inclusao.retry.queue
+      RabbitMqSettings__Inclusao__RetryRoutingKey: lancamento.inclusao.retry
+
+      RabbitMqSettings__Exclusao__AmqpUri: amqp://guest:guest@rabbitmq:5672
+      RabbitMqSettings__Exclusao__ExchangeName: lancamento.exchange
+      RabbitMqSettings__Exclusao__QueueName: lancamento.excluido.queue
+      RabbitMqSettings__Exclusao__RoutingKey: lancamento.excluido
+      RabbitMqSettings__Exclusao__RetryQueueName: lancamento.excluido.retry.queue
+      RabbitMqSettings__Exclusao__RetryRoutingKey: lancamento.excluido.retry
+
+      # Redis
+      Redis__Configuration: redis:6379
+      Redis__InstanceName: ControleFluxoCaixa_
+
+      # Loki
+      LOKI__Uri: http://loki:3100/loki/api/v1/push
+      LOKI__PeriodSeconds: 2
+      LOKI__BufferBaseFilename: /tmp/loki-buffer/buffer
+
     ports:
-      - "5000:80"
       - "5001:443"
-    volumes:
-      - ~/.aspnet/https:/root/.aspnet/https:ro
     networks:
       - app-net
 
+  # Redis principal para cache
   redis:
     image: redis:latest
     container_name: redis
@@ -50,6 +98,7 @@ services:
     networks:
       - app-net
 
+  # Exportador Prometheus para o Redis
   redis_exporter:
     image: oliver006/redis_exporter:latest
     container_name: redis-exporter
@@ -64,6 +113,7 @@ services:
     depends_on:
       - redis
 
+  # MongoDB (opcional)
   mongodb:
     image: mongo:6.0
     container_name: mongodb
@@ -80,6 +130,7 @@ services:
     networks:
       - app-net
 
+  # Exportador Prometheus para MongoDB
   mongo_exporter:
     image: bitnami/mongodb-exporter:latest
     container_name: mongo-exporter
@@ -94,6 +145,7 @@ services:
     depends_on:
       - mongodb
 
+  # Prometheus principal
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -109,6 +161,7 @@ services:
     networks:
       - app-net
 
+  # Grafana para dashboards
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -123,6 +176,7 @@ services:
     networks:
       - app-net
 
+  # RabbitMQ com interface de gerenciamento
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
@@ -136,6 +190,7 @@ services:
     networks:
       - app-net
 
+  # Init do Loki para permissões corretas
   loki-init:
     image: busybox:latest
     container_name: loki-init
@@ -149,6 +204,7 @@ services:
     networks:
       - app-net
 
+  # Loki para logs estruturados
   loki:
     image: grafana/loki:2.8.2
     container_name: loki
@@ -168,6 +224,7 @@ services:
     networks:
       - app-net
 
+  # Promtail para coleta de logs locais para o Loki
   promtail:
     image: grafana/promtail:2.8.2
     container_name: promtail
@@ -181,6 +238,39 @@ services:
     networks:
       - app-net
 
+  # Banco de dados para os dados principais do sistema
+  mysql_fluxocaixa:
+    image: mysql:8.0
+    container_name: mysql_fluxocaixa
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysqldata_fluxocaixa:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-net
+
+  # Exportador Prometheus para o mysql_fluxocaixa
+  mysqld_exporter_fluxocaixa:
+    image: prom/mysqld-exporter:latest
+    container_name: mysqld_exporter_fluxocaixa
+    restart: always
+    volumes:
+      - ./mysql_exporter_app.cnf:/etc/mysql_exporter.cnf:ro
+    ports:
+      - "9250:9104"
+    networks:
+      - app-net
+    depends_on:
+      - mysql_fluxocaixa
+
 networks:
   app-net:
     driver: bridge
@@ -190,8 +280,5 @@ volumes:
   mongo-data:
   loki_index:
   loki_chunks:
-  loki_compactor:  
-
-# -----------------------------
-# Para subir tudo:
-# docker-compose -f docker-compose.yml up -d --build --remove-orphans
+  loki_compactor:
+  mysqldata_fluxocaixa:

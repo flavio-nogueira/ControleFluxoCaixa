@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ControleFluxoCaixa.Domain\ControleFluxoCaixa.Domain.csproj" />
+    <ProjectReference Include="..\ControleFluxoCaixa.Messaging\ControleFluxoCaixa.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

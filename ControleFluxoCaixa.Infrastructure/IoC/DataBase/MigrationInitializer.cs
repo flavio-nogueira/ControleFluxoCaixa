@@ -1,62 +1,81 @@
-﻿using ControleFluxoCaixa.Infrastructure.Context.Identity;
+﻿using ControleFluxoCaixa.Infrastructure.Context.FluxoCaixa;
+using ControleFluxoCaixa.Infrastructure.Context.Identity;
 using ControleFluxoCaixa.Infrastructure.Seeders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-namespace ControleFluxoCaixa.Infrastructure.IoC.DataBase
+public static class MigrationInitializer
 {
     /// <summary>
-    /// Classe responsável por aplicar automaticamente as migrations pendentes
-    /// do IdentityDBContext assim que a aplicação inicia.
-    /// Além disso, executa os scripts de seed necessários para criar dados iniciais,
-    /// como o usuário administrador padrão.
+    /// Aplica migrations pendentes e executa o seed inicial de usuários.
     /// </summary>
-    public static class MigrationInitializer
+    /// <param name="app">Instância da aplicação (IHost)</param>
+    public static async Task ApplyMigrationsAsync(IHost app)
     {
-        /// <summary>
-        /// Aplica as migrations pendentes do banco de dados de identidade e executa seeds.
-        /// Deve ser chamada logo após a construção do host da aplicação.
-        /// </summary>
-        /// <param name="app">Instância do IHost gerado pelo WebApplication</param>
-        public static async Task ApplyMigrationsAsync(IHost app)
+        // Cria um escopo de serviços para acessar os contextos e dependências
+        using var scope = app.Services.CreateScope();
+        var services = scope.ServiceProvider;
+
+        // Cria o logger para registrar o progresso e erros
+        var logger = services.GetRequiredService<ILoggerFactory>()
+                             .CreateLogger("MigrationInitializer");
+
+        //  MIGRATIONS: Banco Identity 
+        try
         {
-            // Cria um escopo de serviço para acessar o container de injeção de dependência (DI)
-            using var scope = app.Services.CreateScope();
+            var identityDb = services.GetRequiredService<IdentityDBContext>();
+            var identityPending = await identityDb.Database.GetPendingMigrationsAsync();
 
-            // Obtém uma instância do IdentityDBContext dentro do escopo
-            var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDBContext>();
-
-            // Verifica se existem migrations que ainda não foram aplicadas no banco de dados de forma assíncrona, a lista de migrations pendentes
-            var pending = await dbContext.Database.GetPendingMigrationsAsync();
-
-            if (pending.Any())
+            if (identityPending.Any())
             {
-                // Se houver migrations pendentes, aplica todas automaticamente
-                Console.WriteLine("Aplicando migrations pendentes...");
-                await dbContext.Database.MigrateAsync(); // Aplica migrations de forma assíncrona
+                logger.LogInformation("Aplicando migrations para banco Identity...");
+                await identityDb.Database.MigrateAsync();
+                logger.LogInformation("Migrations de Identity aplicadas com sucesso.");
             }
             else
             {
-                // Se não houver nenhuma migration pendente, apenas informa
-                Console.WriteLine("Nenhuma migration pendente.");
+                logger.LogInformation("Nenhuma migration pendente para banco Identity.");
             }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Erro ao aplicar migrations de Identity.");
+        }
 
-            try
+        // MIGRATIONS: Banco Fluxo de Caixa ===
+        try
+        {
+            var fluxoDb = services.GetRequiredService<FluxoCaixaDbContext>();
+            var fluxoPending = await fluxoDb.Database.GetPendingMigrationsAsync();
+
+            if (fluxoPending.Any())
             {
-                // Resolve o serviço de seed para criar o usuário admin
-                var seeder = scope.ServiceProvider.GetRequiredService<SeedIdentityAdminUser>();
-
-                // Executa o seed (ex: cria o usuário Admin se necessário)
-                await seeder.ExecuteAsync();
+                logger.LogInformation("Aplicando migrations para banco Fluxo de Caixa...");
+                await fluxoDb.Database.MigrateAsync();
+                logger.LogInformation("Migrations de Fluxo de Caixa aplicadas com sucesso.");
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine(" Erro ao executar o seed:");
-                Console.WriteLine(ex.Message);
-                Console.WriteLine(ex.StackTrace);
+                logger.LogInformation("Nenhuma migration pendente para banco Fluxo de Caixa.");
             }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Erro ao aplicar migrations de Fluxo de Caixa.");
+        }
 
+        // === SEED: Usuário Administrador ===
+        try
+        {
+            var seeder = services.GetRequiredService<SeedIdentityAdminUser>();
+            await seeder.ExecuteAsync();
+            logger.LogInformation("Seed do usuário administrador executado com sucesso.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Erro ao executar seed do usuário administrador.");
         }
     }
 }

@@ -3,10 +3,8 @@ using ControleFluxoCaixa.Application.Interfaces.Auth;
 using ControleFluxoCaixa.Application.Interfaces.Cache;
 using ControleFluxoCaixa.Domain.Entities.User;
 using ControleFluxoCaixa.Tests.Shared.Helpers;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
 {
@@ -38,7 +36,7 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
             refreshTokenService.Setup(x => x.GenerateRefreshTokenAsync(user, ipAddress))
                                .ReturnsAsync(refreshToken);
 
-            var cache = new Mock<IGenericCacheService>();
+            var cache = new Mock<ICacheService>();
             var logger = new Mock<ILogger<LoginCommandHandler>>();
 
             var handler = new LoginCommandHandler(
@@ -71,7 +69,7 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
                 userManager.Object,
                 Mock.Of<ITokenService>(),
                 Mock.Of<IRefreshTokenService>(),
-                Mock.Of<IGenericCacheService>(),
+                Mock.Of<ICacheService>(),
                 Mock.Of<ILogger<LoginCommandHandler>>()
             );
 
@@ -95,7 +93,7 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
                 userManager.Object,
                 Mock.Of<ITokenService>(),
                 Mock.Of<IRefreshTokenService>(),
-                Mock.Of<IGenericCacheService>(),
+                Mock.Of<ICacheService>(),
                 Mock.Of<ILogger<LoginCommandHandler>>()
             );
 

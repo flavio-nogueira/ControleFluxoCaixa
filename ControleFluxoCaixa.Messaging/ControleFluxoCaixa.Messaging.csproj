@@ -17,4 +17,12 @@
     <PackageReference Include="RabbitMQ.Client" Version="6.2.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Consumers\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ControleFluxoCaixa.Domain\ControleFluxoCaixa.Domain.csproj" />
+  </ItemGroup>
+
 </Project>
