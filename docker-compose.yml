@@ -98,7 +98,7 @@ services:
       - app-net
   
   # BFF - Gateway para orquestração
-  controlefluxocaixa.bff:
+  bff:
     build:
       context: ./ControleFluxoCaixa.BFF
       dockerfile: Dockerfile
@@ -107,10 +107,10 @@ services:
     restart: always
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: "https://+:443"
+      ASPNETCORE_URLS: "http://+:80"  
       DOTNET_RUNNING_IN_CONTAINER: true
     ports:
-      - "5000:443"  # Porta externa HTTPs do BFF (acessa https://localhost:5000)
+      - "5000:80"  # Acesso via http://localhost:5000
     depends_on:
       controlefluxocaixa.api:
         condition: service_started
@@ -119,6 +119,7 @@ services:
     volumes:
       - ./ControleFluxoCaixa.BFF:/app
       - ~/.nuget/packages:/root/.nuget/packages:ro
+ 
 
   # Redis principal para cache
   redis:
