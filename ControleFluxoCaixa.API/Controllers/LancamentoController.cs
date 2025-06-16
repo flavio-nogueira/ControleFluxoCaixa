@@ -1,13 +1,11 @@
-﻿using ControleFluxoCaixa.Application.Commands;
+﻿using Amazon.Runtime.Internal.Util;
 using ControleFluxoCaixa.Application.Commands.Lancamento;
-using ControleFluxoCaixa.Application.DTOs;
 using ControleFluxoCaixa.Application.DTOs.Response;
 using ControleFluxoCaixa.Application.Interfaces.Cache;
 using ControleFluxoCaixa.Application.Queries;
-using ControleFluxoCaixa.Domain.Entities;
 using ControleFluxoCaixa.Domain.Enums;
+using ControleFluxoCaixa.Mongo.Documents;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Polly;
 using Polly.Retry;
@@ -19,7 +17,7 @@ namespace ControleFluxoCaixa.API.Controllers
 {
     //[ApiController]
     [Route("api/[controller]")]
-   // [Authorize]
+    // [Authorize]
     public class LancamentoController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -257,7 +255,7 @@ namespace ControleFluxoCaixa.API.Controllers
                     Mensagem = "Consulta realizada com sucesso",
                     Sucesso = true,
                     Registros = 1,
-                    Retorno = new List<object> { lancamento } 
+                    Retorno = new List<object> { lancamento }
                 };
 
                 timer.ObserveDuration();
@@ -314,38 +312,6 @@ namespace ControleFluxoCaixa.API.Controllers
 
             return Created(location!, id);
         }
-
-        //public async Task<ActionResult<Guid>> Create([FromBody] CreateLancamentoCommand command, CancellationToken cancellationToken)
-        //{
-        //    var timer = RequestDuration.WithLabels("POST", "Create", "").NewTimer();
-        //    CreateCounter.Inc();
-        //    try
-        //    {
-        //        if (command == null)
-        //        {
-        //            _logger.Warning("Dados de lançamento inválidos recebidos: comando nulo");
-        //            timer.ObserveDuration();
-        //            return BadRequest("Dados de lançamento inválidos.");
-        //        }
-
-        //        var id = await _mediator.Send(command, cancellationToken);
-
-        //        // Remove o cache geral após criação
-        //        await _cacheService.RemoveAsync("lancamentos:all", cancellationToken);
-
-        //        var location = Url.Link("GetLancamentoById", new { id });
-        //        _logger.Information("Lançamento criado com sucesso: {Id}", id);
-        //        timer.ObserveDuration();
-        //        return Created(location!, id);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.Error(ex, "Erro interno ao criar lançamento");
-        //        timer.ObserveDuration();
-        //        return StatusCode(500, "Ocorreu um erro interno ao criar o lançamento.");
-        //    }
-        //}
-
 
         /// <summary>
         /// Exclui um lançamento com base no ID informado.
@@ -407,6 +373,72 @@ namespace ControleFluxoCaixa.API.Controllers
 
                 timer.ObserveDuration();
                 return StatusCode(500, erroResponse);
+            }
+        }
+
+        /// <summary>
+        /// Retorna o saldo diário consolidado entre as datas informadas, com cache.
+        /// </summary>
+        [HttpGet("saldos")]
+        [ProducesResponseType(typeof(LancamentoResponseDto), 200)]
+        [ProducesResponseType(typeof(LancamentoResponseDto), 500)]
+        public async Task<ActionResult<LancamentoResponseDto>> GetSaldos(
+    [FromQuery] DateTime de,
+    [FromQuery] DateTime ate,
+    CancellationToken ct)
+        {
+            var timer = RequestDuration.WithLabels("GET", "GetSaldosConsolidados", "").NewTimer();
+            GetAllCounter.Inc();
+
+            if (de > ate)
+            {
+                return BadRequest(new LancamentoResponseDto
+                {
+                    Mensagem = "Parâmetro 'de' não pode ser maior que 'ate'.",
+                    Sucesso = false,
+                    Registros = 0
+                });
+            }
+
+            var cacheKey = $"saldos:{de:yyyyMMdd}:{ate:yyyyMMdd}";
+
+            try
+            {
+                var saldos = await RetryPolicy.ExecuteAsync(() =>
+                    _cacheService.GetOrSetAsync(
+                        cacheKey,
+                        async () => await _mediator.Send(new GetSaldosConsolidadosQuery(de, ate), ct),
+                        TimeSpan.FromMinutes(10),
+                        ct));
+
+                return Ok(new LancamentoResponseDto
+                {
+                    Mensagem = "Consulta realizada com sucesso",
+                    Sucesso = true,
+                    Registros = saldos.Count,
+                    Retorno = saldos.Cast<object>().ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Erro ao consultar saldos consolidados");
+
+                return StatusCode(500, new LancamentoResponseDto
+                {
+                    Mensagem = "Erro interno",
+                    Sucesso = false,
+                    Registros = 0,
+                    Erros = new List<LancamentoErroDto>
+            {
+                new()
+                {
+                    Data = DateTime.UtcNow,
+                    Descricao = $"Erro ao consultar saldos de {de:yyyy-MM-dd} a {ate:yyyy-MM-dd}",
+                    Erro = ex.Message,
+                    Tipo = TipoLancamento.Debito
+                }
+            }
+                });
             }
         }
 

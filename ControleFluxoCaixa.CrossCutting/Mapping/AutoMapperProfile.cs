@@ -18,7 +18,7 @@ namespace ControleFluxoCaixa.CrossCutting.Mapping
 
             // Lancamento → ItenLancando (caso de retorno para leitura)
             CreateMap<Lancamento, ItenLancando>()
-                .ForMember(dest => dest.Tipo, opt => opt.MapFrom(src => src.Tipo)); 
+                .ForMember(dest => dest.Tipo, opt => opt.MapFrom(src => src.Tipo));
 
         }
     }

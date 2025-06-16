@@ -1,9 +1,5 @@
 ﻿using FluentValidation;
 using MediatR;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace ControleFluxoCaixa.Application.Pipelines
 {

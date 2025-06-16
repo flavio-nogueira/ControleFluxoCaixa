@@ -29,7 +29,7 @@ namespace ControleFluxoCaixa.Infrastructure.IoC.Observability
             //var redisConn = configuration.GetConnectionString("RedisConnection")
             //    ?? throw new InvalidOperationException("Connection string 'RedisConnection' não encontrada.");
 
-            
+
             // RabbitMQ Inclusão
             var rabbitMqInclusaoConn = configuration["RabbitMqSettings:Inclusao:AmqpUri"]
                 ?? throw new InvalidOperationException("Configuração 'RabbitMqSettings:Inclusao:AmqpUri' não encontrada.");

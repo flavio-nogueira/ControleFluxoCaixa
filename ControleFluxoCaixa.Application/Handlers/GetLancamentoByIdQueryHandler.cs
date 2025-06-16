@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using ControleFluxoCaixa.Application.DTOs;
 using ControleFluxoCaixa.Application.Queries;
-using ControleFluxoCaixa.Domain.Entities;
 using ControleFluxoCaixa.Domain.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;

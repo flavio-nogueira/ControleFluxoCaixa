@@ -1,6 +1,5 @@
 ﻿using ControleFluxoCaixa.Application.Commands.Lancamento;
 using ControleFluxoCaixa.Application.DTOs;
-using ControleFluxoCaixa.Application.DTOs.Response;
 using ControleFluxoCaixa.Domain.Enums;
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;

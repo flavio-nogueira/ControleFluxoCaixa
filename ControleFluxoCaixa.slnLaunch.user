@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "ControleFluxoCaixa.API\\ControleFluxoCaixa.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "ControleFluxoCaixa.BFF\\ControleFluxoCaixa.BFF.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

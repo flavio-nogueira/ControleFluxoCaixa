@@ -1,4 +1,4 @@
-version: '3.8'
+﻿version: '3.8'
 
 services:
   # Banco de dados para identidade (auth)
@@ -21,20 +21,38 @@ services:
       - app-net
 
   # Exportador Prometheus para o mysql_identity
-  mysqld_exporter_identity:
-    image: prom/mysqld-exporter:latest
-    container_name: mysqld_exporter_identity
+  # mysqld_exporter_identity:
+  #   image: prom/mysqld-exporter:latest
+  #   container_name: mysqld_exporter_identity
+  #   restart: always
+  #   volumes:
+  #     - ./mysql-identity-my.cnf:/home/.my.cnf:ro
+  #   environment:
+  #     - MYSQLD_EXPORTER_CONFIG_MY_CNF=/home/.my.cnf
+  #   ports:
+  #     - "9105:9104"
+  #   depends_on:
+  #     - mysql_identity
+  #   networks:
+  #     - app-net
+
+  # MongoDB (opcional)
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
     restart: always
-    volumes:
-      - ./mysql-identity-my.cnf:/home/.my.cnf:ro
-    environment:
-      - MYSQLD_EXPORTER_CONFIG_MY_CNF=/home/.my.cnf
     ports:
-      - "9105:9104"
-    depends_on:
-      - mysql_identity
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - app-net
+
 
   # API principal do sistema
   controlefluxocaixa.api:
@@ -50,6 +68,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_started
+      mongodb:
+         condition: service_healthy
     restart: always
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -58,6 +78,11 @@ services:
       # Connection Strings
       ConnectionStrings__IdentityConnection: "server=mysql_identity;port=3306;database=dbfluxocaixa_identity;user=root;password=root"
       ConnectionStrings__FluxoCaixaConnection: "server=mysql_fluxocaixa;port=3306;database=dbfluxocaixa;user=root;password=root"
+
+       # MongoDB
+      Mongo__ConnectionString: "mongodb://mongodb:27017"
+      Mongo__DatabaseName: "ControleFluxoCaixa"
+      Mongo__CollectionName: "SaldoDiarioConsolidado"
 
       # Configuração RabbitMQ
       RabbitMqSettings__Inclusao__AmqpUri: amqp://guest:guest@rabbitmq:5672
@@ -111,24 +136,7 @@ services:
     networks:
       - app-net
     depends_on:
-      - redis
-
-  # MongoDB (opcional)
-  mongodb:
-    image: mongo:6.0
-    container_name: mongodb
-    restart: always
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-net
+      - redis 
 
   # Exportador Prometheus para MongoDB
   mongo_exporter:
@@ -256,21 +264,28 @@ services:
       retries: 5
     networks:
       - app-net
-
-  # Exportador Prometheus para o mysql_fluxocaixa
-  mysqld_exporter_fluxocaixa:
-    image: prom/mysqld-exporter:latest
-    container_name: mysqld_exporter_fluxocaixa
-    restart: always
+# Worker para processamento RabbitMQ com debug
+  worker:
+    build:
+      context: ./ControleFluxoCaixa.WorkerRabbitMq
+      dockerfile: Dockerfile
+    container_name: worker
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Mongo__ConnectionString: mongodb://mongodb:27017
+      Mongo__DatabaseName: ControleFluxoCaixa
+      Rabbit__Host: rabbitmq
+      Rabbit__User: guest
+      Rabbit__Pass: guest
     volumes:
-      - ./mysql_exporter_app.cnf:/etc/mysql_exporter.cnf:ro
-    ports:
-      - "9250:9104"
+      - ./ControleFluxoCaixa.WorkerRabbitMq:/app
+      - ~/.nuget/packages:/root/.nuget/packages:ro
+    command: ["dotnet", "watch", "run"]
+    depends_on:
+      - mongodb
+      - rabbitmq
     networks:
       - app-net
-    depends_on:
-      - mysql_fluxocaixa
-
 networks:
   app-net:
     driver: bridge

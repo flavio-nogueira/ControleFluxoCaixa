@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using ControleFluxoCaixa.Application.Commands;
 using ControleFluxoCaixa.Application.Commands.Lancamento;
 using ControleFluxoCaixa.Application.DTOs.Response;
 using ControleFluxoCaixa.Application.Interfaces.Cache;

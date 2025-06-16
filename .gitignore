@@ -23,3 +23,5 @@
 /ControleFluxoCaixa.CrossCutting/bin/Debug/net8.0
 /ControleFluxoCaixa.Messaging/bin/Debug/net8.0
 /ControleFluxoCaixa.MongoDB/bin/Debug/net8.0
+/ControleFluxoCaixa.WorkerRabbitMq/bin/Debug/net8.0
+/ControleFluxoCaixa.WorkerRabbitMq/obj
