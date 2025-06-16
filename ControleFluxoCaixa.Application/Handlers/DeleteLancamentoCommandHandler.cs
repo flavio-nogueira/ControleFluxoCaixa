@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using ControleFluxoCaixa.Application.Commands.Lancamento;
+﻿using ControleFluxoCaixa.Application.Commands.Lancamento;
 using ControleFluxoCaixa.Application.DTOs;
 using ControleFluxoCaixa.Application.DTOs.Response;
 using ControleFluxoCaixa.Application.Interfaces.Cache;
@@ -10,7 +9,6 @@ using ControleFluxoCaixa.Messaging.Publishers;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Text.Json;
 
 namespace ControleFluxoCaixa.Application.Handlers
 {

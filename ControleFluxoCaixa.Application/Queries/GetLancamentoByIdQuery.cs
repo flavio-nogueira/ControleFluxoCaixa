@@ -1,5 +1,4 @@
 ﻿using ControleFluxoCaixa.Application.DTOs;
-using ControleFluxoCaixa.Domain.Entities;
 using MediatR;
 
 namespace ControleFluxoCaixa.Application.Queries

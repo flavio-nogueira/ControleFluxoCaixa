@@ -1,5 +1,4 @@
 ﻿using ControleFluxoCaixa.Domain.Enums;
-using System.Text.Json.Serialization;
 
 
 namespace ControleFluxoCaixa.Domain.Entities

@@ -1,6 +1,4 @@
-﻿using ControleFluxoCaixa.Domain.Entities;
-
-namespace ControleFluxoCaixa.Application.DTOs.Response
+﻿namespace ControleFluxoCaixa.Application.DTOs.Response
 {
     /// <summary>
     /// DTO utilizado para retornar o resultado de uma operação de lançamento (criação, exclusão, etc).

@@ -1,8 +1,4 @@
-﻿using ControleFluxoCaixa.Application.Commands.Auth.DeleteUser;
-using ControleFluxoCaixa.Application.Commands.Auth.Login;
-using ControleFluxoCaixa.Application.Commands.Auth.RegisterUser;
-using ControleFluxoCaixa.Application.Commands.Auth.UpdateUser;
-using ControleFluxoCaixa.Application.Filters;
+﻿using ControleFluxoCaixa.Application.Filters;
 using ControleFluxoCaixa.Application.Handlers;
 using ControleFluxoCaixa.Application.Interfaces.Cache;
 using ControleFluxoCaixa.Application.Interfaces.Seed;
@@ -15,12 +11,15 @@ using ControleFluxoCaixa.Infrastructure.Cache;
 using ControleFluxoCaixa.Infrastructure.IoC.Auth;
 using ControleFluxoCaixa.Infrastructure.IoC.DataBase;
 using ControleFluxoCaixa.Infrastructure.IoC.Jwt;
+using ControleFluxoCaixa.Infrastructure.IoC.MongoDB;
 using ControleFluxoCaixa.Infrastructure.IoC.Swagger;
 using ControleFluxoCaixa.Infrastructure.Repositories;
 using ControleFluxoCaixa.Infrastructure.Seeders;
 using ControleFluxoCaixa.Infrastructure.Services.Seed;
 using ControleFluxoCaixa.Messaging.MessagingSettings;
 using ControleFluxoCaixa.Messaging.Publishers;
+using ControleFluxoCaixa.Mongo.Repositories;
+using ControleFluxoCaixa.MongoDB.Interfaces;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Configuration;
@@ -51,7 +50,7 @@ namespace ControleFluxoCaixa.Infrastructure.IoC
 
             // Registra AutoMapper 
 
-            services.AddAutoMapper(typeof(AutoMapperProfile)); 
+            services.AddAutoMapper(typeof(AutoMapperProfile));
 
             // Registra o HttpClient nomeado "ApiInterna" com políticas resilientes (Timeout, Retry e CircuitBreaker via Polly)
             services.AddResilientHttpClient();
@@ -88,14 +87,19 @@ namespace ControleFluxoCaixa.Infrastructure.IoC
             // Assim, a classe RabbitMqPublisher<T> pode acessar as configurações de URI, fila e exchange via IOptions<RabbitMqSettings>.
             services.Configure<RabbitMqSettings>(configuration.GetSection("RabbitMqSettings"));
 
+            // MongoDB
+            services.AddMongoDb(configuration);
+
             // Registra todos os command/handlers da aplicação com MediatR
             services.AddMediatR(
                 typeof(CreateLancamentoCommandHandler).Assembly,
                 typeof(DeleteLancamentoCommandHandler).Assembly,
                 typeof(GetAllLancamentosQueryHandler).Assembly,
-                typeof(GetAllUsersQueryHandler).Assembly,    
+                typeof(GetAllUsersQueryHandler).Assembly,
                 typeof(GetUserByIdQueryHandler).Assembly,
-                typeof(ListLancamentosQueryHandler).Assembly             
+                typeof(ListLancamentosQueryHandler).Assembly,
+                typeof(GetSaldosConsolidadosQueryHandler).Assembly
+                
 
             );
 
@@ -108,6 +112,20 @@ namespace ControleFluxoCaixa.Infrastructure.IoC
 
             // Serviço responsável por registrar e verificar a execução de seeds (ex: garantir que cada seed rode só uma vez)
             services.AddScoped<ISeederService, SeederService>();
+
+            services.AddScoped<ISaldoDiarioConsolidadoRepository, SaldoDiarioConsolidadoRepository>();
+
+            services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy", builder =>
+                {
+                    builder
+                        .AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader();
+                });
+            });
+
 
             return services;
         }

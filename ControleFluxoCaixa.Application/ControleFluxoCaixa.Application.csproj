@@ -22,4 +22,8 @@
     <ProjectReference Include="..\ControleFluxoCaixa.Messaging\ControleFluxoCaixa.Messaging.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Interfaces\MongoDB\" />
+  </ItemGroup>
+
 </Project>

@@ -1,5 +1,4 @@
 ﻿// Importa as configurações de injeção de dependência personalizadas da aplicação
-
 using ControleFluxoCaixa.Application.Settings.ControleFluxoCaixa.Application.Settings;
 using ControleFluxoCaixa.Infrastructure.IoC;
 // Importa o inicializador responsável por aplicar migrations e executar seeds no banco de dados
@@ -89,6 +88,8 @@ app.UseAuthorization();
 // Middleware de telemetria para Prometheus (exposição em /metrics)
 app.UseMetricServer();    // Exibe métricas Prometheus em /metrics
 app.UseHttpMetrics();     // Coleta métricas por requisição HTTP
+
+app.UseCors("CorsPolicy");
 
 // Mapeia os endpoints dos controllers para responder às rotas definidas na API
 app.MapControllers();

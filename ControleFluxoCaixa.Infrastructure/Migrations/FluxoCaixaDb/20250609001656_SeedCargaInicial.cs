@@ -8,14 +8,14 @@ namespace ControleFluxoCaixa.Infrastructure.Migrations.FluxoCaixaDb
     public partial class SeedCargaInicial : Migration
     {
         /// <inheritdoc />
-     
-            protected override void Up(MigrationBuilder migrationBuilder)
-            {
-                migrationBuilder.InsertData(
-                    table: "Lancamentos",
-                    columns: new[] { "Id", "Data", "Valor", "Descricao", "Tipo" },
-                    values: new object[,]
-                    {
+
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.InsertData(
+                table: "Lancamentos",
+                columns: new[] { "Id", "Data", "Valor", "Descricao", "Tipo" },
+                values: new object[,]
+                {
                     { Guid.Parse("147082c1-174b-4120-a7a4-8aa618356d9f"), DateTime.Parse("2025-05-17T21:48:36.000Z"), 4638.17m, "Recebimento de salário", 1 },
                     { Guid.Parse("744e9934-d812-41ea-8972-2e275dfc1a83"), DateTime.Parse("2025-05-14T15:15:25.000Z"), 4432.58m, "Depósito bancário", 1 },
                     { Guid.Parse("3b28d651-d558-4566-9f29-57201c743378"), DateTime.Parse("2025-05-19T16:06:04.000Z"), 2212.26m, "Aluguel do escritório", 1 },
@@ -216,16 +216,16 @@ namespace ControleFluxoCaixa.Infrastructure.Migrations.FluxoCaixaDb
                     { Guid.Parse("62e8dee5-fda2-4a68-99cf-d1a2cca75a6c"), DateTime.Parse("2025-05-02T14:36:34.000Z"), 933.3m, "Pagamento de conta", 0 },
                     { Guid.Parse("5fa3ecea-b89e-4fa8-b8ed-20f6cb26ea9a"), DateTime.Parse("2025-05-19T06:30:26.000Z"), 3882.32m, "Pagamento de fornecedor", 1 },
                     { Guid.Parse("00dae9b2-2253-4aa2-8de1-a5787c5c5a73"), DateTime.Parse("2025-05-30T21:15:59.000Z"), 2047.01m, "Pagamento de fornecedor", 1 },
-                    });
-            }
+                });
+        }
 
-            protected override void Down(MigrationBuilder migrationBuilder)
-            {
-                migrationBuilder.DeleteData(
-                    table: "Lancamentos",
-                    keyColumn: "Id",
-                    keyValues: new object[]
-                    {
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DeleteData(
+                table: "Lancamentos",
+                keyColumn: "Id",
+                keyValues: new object[]
+                {
                     Guid.Parse("147082c1-174b-4120-a7a4-8aa618356d9f"),
                     Guid.Parse("744e9934-d812-41ea-8972-2e275dfc1a83"),
                     Guid.Parse("3b28d651-d558-4566-9f29-57201c743378"),
@@ -426,8 +426,8 @@ namespace ControleFluxoCaixa.Infrastructure.Migrations.FluxoCaixaDb
                     Guid.Parse("62e8dee5-fda2-4a68-99cf-d1a2cca75a6c"),
                     Guid.Parse("5fa3ecea-b89e-4fa8-b8ed-20f6cb26ea9a"),
                     Guid.Parse("00dae9b2-2253-4aa2-8de1-a5787c5c5a73"),
-                    });
-            }
-       
+                });
+        }
+
     }
 }
