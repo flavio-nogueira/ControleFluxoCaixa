@@ -20,22 +20,6 @@ services:
     networks:
       - app-net
 
-  # Exportador Prometheus para o mysql_identity
-  # mysqld_exporter_identity:
-  #   image: prom/mysqld-exporter:latest
-  #   container_name: mysqld_exporter_identity
-  #   restart: always
-  #   volumes:
-  #     - ./mysql-identity-my.cnf:/home/.my.cnf:ro
-  #   environment:
-  #     - MYSQLD_EXPORTER_CONFIG_MY_CNF=/home/.my.cnf
-  #   ports:
-  #     - "9105:9104"
-  #   depends_on:
-  #     - mysql_identity
-  #   networks:
-  #     - app-net
-
   # MongoDB (opcional)
   mongodb:
     image: mongo:6.0
@@ -112,6 +96,29 @@ services:
       - "5001:443"
     networks:
       - app-net
+  
+  # BFF - Gateway para orquestração
+  controlefluxocaixa.bff:
+    build:
+      context: ./ControleFluxoCaixa.BFF
+      dockerfile: Dockerfile
+    image: controlefluxocaixa_bff:latest
+    container_name: controlefluxocaixa_bff
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "https://+:443"
+      DOTNET_RUNNING_IN_CONTAINER: true
+    ports:
+      - "5000:443"  # Porta externa HTTPs do BFF (acessa https://localhost:5000)
+    depends_on:
+      controlefluxocaixa.api:
+        condition: service_started
+    networks:
+      - app-net
+    volumes:
+      - ./ControleFluxoCaixa.BFF:/app
+      - ~/.nuget/packages:/root/.nuget/packages:ro
 
   # Redis principal para cache
   redis:

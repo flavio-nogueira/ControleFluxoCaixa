@@ -25,3 +25,8 @@
 /ControleFluxoCaixa.MongoDB/bin/Debug/net8.0
 /ControleFluxoCaixa.WorkerRabbitMq/bin/Debug/net8.0
 /ControleFluxoCaixa.WorkerRabbitMq/obj
+/ControleFluxoCaixa.API/Logs-buffer
+/ControleFluxoCaixa.API/Logs-fallback
+/.gitignore
+/.gitignore
+/ControleFluxoCaixa.BFF/obj
