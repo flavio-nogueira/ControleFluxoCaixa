@@ -1,0 +1,64 @@
+﻿//{
+//  "GlobalConfiguration": {
+//    "BaseUrl": "https://localhost:32778"
+//  },
+//  "Routes": [
+//    {
+//      "UpstreamPathTemplate": "/gateway/lancamento/getall",
+//      "UpstreamHttpMethod": [ "Get" ],
+//      "DownstreamPathTemplate": "/api/Lancamento/GetAll",
+//      "DownstreamScheme": "https",
+//      "DownstreamHostAndPorts": [
+//        {
+//          "Host": "host.docker.internal",
+//          "Port": 5001
+//        }
+//      ],
+//      "SwaggerKey": "controlefluxo"
+//    }
+//  ],
+//  "SwaggerEndPoints": [
+//    {
+//      "Key": "controlefluxo",
+//      "Config": [
+//        {
+//          "Name": "ControleFluxo API",
+//          "Version": "v1",
+//          "Url": "https://host.docker.internal:5001/swagger/v1/swagger.json"
+//        }
+//      ]
+//    }
+//  ]
+//}
+{
+  "Routes": [
+    {
+      "UpstreamPathTemplate": "/api/gateway/GetAll",
+      "UpstreamHttpMethod": [ "Get" ],
+      "DownstreamPathTemplate": "/api/Lancamento/GetAll",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "SwaggerKey": "controlefluxo"
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "https://localhost:32778"
+  },
+  "SwaggerEndPoints": [
+    {
+      "Key": "controlefluxo",
+      "Config": [
+        {
+          "Name": "ControleFluxo API",
+          "Version": "v1",
+          "Url": "https://host.docker.internal:5001/swagger/v1/swagger.json"
+        }
+      ]
+    }
+  ]
+}

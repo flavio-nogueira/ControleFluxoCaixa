@@ -25,3 +25,5 @@
 /ControleFluxoCaixa.MongoDB/bin/Debug/net8.0
 /ControleFluxoCaixa.WorkerRabbitMq/bin/Debug/net8.0
 /ControleFluxoCaixa.WorkerRabbitMq/obj
+/ControleFluxoCaixa.Gatware.BFF/bin/Debug/net8.0
+/ControleFluxoCaixa.Gatware.BFF/obj
