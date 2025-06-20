@@ -1,0 +1,14 @@
+﻿{
+  "SwaggerEndPoints": [
+    {
+      "Key": "controlefluxo",
+      "Config": [
+        {
+          "Name": "ControleFluxo API",
+          "Version": "v1",
+          "Url": "https://controlefluxocaixa_api/swagger/v1/swagger.json"
+        }
+      ]
+    }
+  ]
+}
