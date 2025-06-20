@@ -1,91 +1,56 @@
-using Prometheus;
+Ôªøusing Prometheus;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
+using System.Net;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Ocelot configuration
+// üîß Carrega o arquivo de configura√ß√£o do Ocelot
 builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
+
+// üîå Registra Ocelot
 builder.Services.AddOcelot(builder.Configuration);
 
-// Add Prometheus metrics counter
-var requestCounter = Metrics.CreateCounter("api_requests_total", "Total de requisiÁıes recebidas");
+// üìä Contador Prometheus
+var requestCounter = Metrics.CreateCounter("api_requests_total", "Total de requisi√ß√µes recebidas");
 
-// Add Swagger for documentation
+// üîç Swagger (opcional: s√≥ aparece se usar controllers reais ‚Äî n√£o √© seu caso)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Logging.AddConsole();
 
 var app = builder.Build();
 
-// Enable Swagger in Development environment
+// Ativa Swagger se quiser exibir endpoints locais (irrelevante no seu caso)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Setup route to increase the Prometheus counter for every request
-app.MapGet("/api/gateway", (HttpContext context) =>
+// üìà Exposi√ß√£o de m√©tricas Prometheus em /metrics
+app.MapMetrics();
+
+// üì¶ L√™ rotas do ocelot.json e cria redirecionamentos manuais
+var configPath = Path.Combine(Directory.GetCurrentDirectory(), "ocelot.json");
+var json = await File.ReadAllTextAsync(configPath);
+var config = JsonSerializer.Deserialize<OcelotConfig>(json);
+
+// üîÅ Redireciona cada rota conforme definida no ocelot.json
+foreach (var route in config.Routes)
 {
-    requestCounter.Inc(); // Increment the counter for every request received
-    return Results.Ok("RequisiÁ„o processada");
-});
-
-// Endpoint for Prometheus to scrape metrics
-//app.MapGet("/metrics", (HttpContext context) =>
-//{
-//    // Collect the metrics from the default registry
-//    var metrics = Metrics.DefaultRegistry.CollectAll();  // Collect all metrics
-//    context.Response.ContentType = "text/plain";  // Set content type to Prometheus format
-
-//    foreach (var metricFamily in metrics)
-//    {
-//        context.Response.WriteAsync(metricFamily.ToString()); // Write the collected metrics to response
-//    }
-
-//    return Task.CompletedTask;
-//});
-
-// Setup Ocelot for routing requests
-
-
-// Custom middleware to log request details
-app.Use(async (context, next) =>
-{
-    // Logando detalhes da requisiÁ„o
-    var request = context.Request;
-    Console.WriteLine($"MÈtodo: {request.Method}");
-    Console.WriteLine($"URL: {request.Scheme}://{request.Host}{request.Path}{request.QueryString}");
-    Console.WriteLine($"RequisiÁ„o recebida: {context.Request.Method} {context.Request.Path}");  // Loga o mÈtodo e o caminho
-
-    // Logando os cabeÁalhos da requisiÁ„o
-    foreach (var header in request.Headers)
+    app.Map(route.UpstreamPathTemplate, async (HttpContext context) =>
     {
-        Console.WriteLine($"{header.Key}: {string.Join(", ", header.Value)}");
-    }
+        requestCounter.Inc(); // Incrementa contador Prometheus
 
-    // LÍ as rotas configuradas no Ocelot
-    var ocelotConfig = builder.Configuration.GetSection("Routes").Get<List<RouteConfig>>();
+        var downstreamHost = route.DownstreamHostAndPorts.First();
+        var downstreamUrl = $"{route.DownstreamScheme}://{downstreamHost.Host}:{downstreamHost.Port}{route.DownstreamPathTemplate}";
 
-    // Log para verificar as rotas carregadas
-    Console.WriteLine("Rotas carregadas do Ocelot:");
-    foreach (var r in ocelotConfig)
-    {
-        Console.WriteLine($"UpstreamPathTemplate: {r.UpstreamPathTemplate}, DownstreamPathTemplate: {r.DownstreamPathTemplate}");
-    }
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"\nüîÅ Redirecionando para: {downstreamUrl}");
+        Console.ResetColor();
 
-    // Captura a rota desejada, ajustando o nome da vari·vel para evitar conflito
-    var matchingRoute = ocelotConfig?.FirstOrDefault(r => r.UpstreamPathTemplate == "/gateway/lancamento/getall");
-
-    if (matchingRoute != null)
-    {
-        // Construindo a URL downstream com base na configuraÁ„o do Ocelot
-        var downstreamUrl = $"https://host.docker.internal:5001{matchingRoute.DownstreamPathTemplate}";
-
-        Console.WriteLine($"URL de destino: {downstreamUrl}");
-
-        // Cria um handler que ignora a validaÁ„o do certificado SSL (somente para desenvolvimento)
         var handler = new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
@@ -96,45 +61,56 @@ app.Use(async (context, next) =>
 
         try
         {
-            var response = await client.GetAsync(downstreamUrl); // faz a requisiÁ„o GET
-            response.EnsureSuccessStatusCode(); // lanÁa exceÁ„o se n„o for sucesso
+            var response = await client.GetAsync(downstreamUrl);
+            var content = await response.Content.ReadAsStringAsync();
 
-            var responseBody = await response.Content.ReadAsStringAsync(); // LÍ a resposta
-            Console.WriteLine(responseBody); // Exibe o conte˙do da resposta
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("‚úÖ Resposta recebida:");
+            Console.ResetColor();
+            Console.WriteLine(content);
+
+            context.Response.StatusCode = (int)response.StatusCode;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(content);
         }
         catch (HttpRequestException ex)
         {
-            Console.WriteLine($"Erro ao chamar a API: {ex.Message}");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"‚ùå Erro ao chamar a API: {ex.Message}");
+            Console.ResetColor();
+
+            context.Response.StatusCode = (int)(ex.StatusCode ?? HttpStatusCode.InternalServerError);
+            await context.Response.WriteAsync($"Erro ao redirecionar a requisi√ß√£o: {ex.Message}");
         }
-    }
-    else
-    {
-        Console.WriteLine("Nenhuma rota encontrada para o caminho solicitado.");
-    }
+    });
+}
 
+// ‚ñ∂Ô∏è Executa o Ocelot como middleware (fallback geral se desejar)
+await app.UseOcelot();
 
-    // Incrementando o contador de requisiÁıes para Prometheus
-    requestCounter.Inc(); // Incrementa o contador para cada requisiÁ„o recebida
-
-    // Passando a requisiÁ„o para o prÛximo middleware
-    await next.Invoke();
-});
-
-await app.UseOcelot(); // Ocelot middleware for API Gateway routing
+// üöÄ Inicia a aplica√ß√£o
 app.Run();
 
 
-public class RouteConfig
+// ==============================
+// MODELOS USADOS PELO OCELOT
+// ==============================
+
+public class OcelotConfig
 {
-    public string UpstreamPathTemplate { get; set; }
-    public List<string> UpstreamHttpMethod { get; set; }
-    public string DownstreamPathTemplate { get; set; }
-    public string DownstreamScheme { get; set; }
-    public List<HostAndPort> DownstreamHostAndPorts { get; set; }
+    public List<OcelotRoute> Routes { get; set; } = new();
 }
 
-public class HostAndPort
+public class OcelotRoute
 {
-    public string Host { get; set; }
+    public string UpstreamPathTemplate { get; set; } = string.Empty;
+    public string DownstreamPathTemplate { get; set; } = string.Empty;
+    public string DownstreamScheme { get; set; } = "http";
+    public List<DownstreamHostAndPort> DownstreamHostAndPorts { get; set; } = new();
+}
+
+public class DownstreamHostAndPort
+{
+    public string Host { get; set; } = string.Empty;
     public int Port { get; set; }
 }

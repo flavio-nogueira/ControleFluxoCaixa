@@ -274,7 +274,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
     ports:
-      - "32768:8080"  # 🔁 Expondo a porta 8080 do container para o host
+      - "32768:8080"  
     depends_on:
       - controlefluxocaixa.api
     networks:
