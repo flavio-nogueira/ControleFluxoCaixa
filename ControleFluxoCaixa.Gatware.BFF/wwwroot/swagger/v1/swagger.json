@@ -1,0 +1,25 @@
+﻿{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Fake ControleFluxo API",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://fakeapi" // ou host.docker.internal se for externo
+    }
+  ],
+  "paths": {
+    "/api/teste": {
+      "get": {
+        "summary": "Teste GET",
+        "responses": {
+          "200": {
+            "description": "Requisição bem-sucedida"
+          }
+        }
+      }
+    }
+  },
+  "components": {} // evita erro de objeto nulo na leitura de 'components'
+}
