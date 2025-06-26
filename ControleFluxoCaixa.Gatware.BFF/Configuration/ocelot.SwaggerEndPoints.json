@@ -4,9 +4,9 @@
       "Key": "controlefluxo",
       "Config": [
         {
-          "Name": "Fake ControleFluxo API",
+          "Name": "ControleFluxoCaixa API",
           "Version": "v1",
-          "Url": "http://host.docker.internal:32768/swagger/v1/swagger.json"
+          "Url": "http://host.docker.internal:5001/swagger/v1/swagger.json"
         }
       ]
     }

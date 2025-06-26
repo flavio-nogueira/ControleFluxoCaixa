@@ -20,6 +20,24 @@ namespace ControleFluxoCaixa.Infrastructure.IoC.Swagger
 
             services.AddSwaggerGen(c =>
             {
+
+                // ✅ Adiciona servidor conforme ambiente (container ou local)
+                if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
+                {
+                    c.AddServer(new OpenApiServer
+                    {
+                        Url = "https://controlefluxocaixa_api"
+                    });
+                }
+                else
+                {
+                    c.AddServer(new OpenApiServer
+                    {
+                        Url = "https://localhost:5001"
+                    });
+                }
+
+
                 // Definição do documento OpenAPI/Swagger
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
