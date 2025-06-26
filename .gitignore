@@ -25,3 +25,9 @@
 /ControleFluxoCaixa.MongoDB/bin/Debug/net8.0
 /ControleFluxoCaixa.WorkerRabbitMq/bin/Debug/net8.0
 /ControleFluxoCaixa.WorkerRabbitMq/obj
+/ControleFluxoCaixa.Gatware.BFF/bin/Debug/net8.0
+/ControleFluxoCaixa.Gatware.BFF/obj
+/ControleFluxoCaixa.API/Logs-buffer
+/ControleFluxoCaixa.API/Logs-fallback/log-20250618.json
+/ControleFluxoCaixa.API/Logs-fallback/log-20250619.json
+/ControleFluxoCaixa.API/Logs-fallback/log-20250604.json

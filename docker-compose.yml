@@ -73,7 +73,7 @@ services:
     restart: always
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: "https://+:443"
+      ASPNETCORE_URLS: "http://+:80"
 
       # Connection Strings
       ConnectionStrings__IdentityConnection: "server=mysql_identity;port=3306;database=dbfluxocaixa_identity;user=root;password=root"
@@ -109,7 +109,7 @@ services:
       LOKI__BufferBaseFilename: /tmp/loki-buffer/buffer
 
     ports:
-      - "5001:443"
+      - "5001:80"
     networks:
       - app-net
 
@@ -264,6 +264,22 @@ services:
       retries: 5
     networks:
       - app-net
+
+  gatware_bff:
+    build:
+      context: .
+      dockerfile: ControleFluxoCaixa.Gatware.BFF/Dockerfile
+    image: controlefluxocaixa_gatware_bff:latest
+    container_name: controlefluxocaixa_gatware_bff
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "32768:8080"  
+    depends_on:
+      - controlefluxocaixa.api
+    networks:
+      - app-net
+
 # Worker para processamento RabbitMQ com debug
   worker:
     build:

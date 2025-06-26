@@ -6,18 +6,19 @@ using ControleFluxoCaixa.Application.Queries;
 using ControleFluxoCaixa.Domain.Enums;
 using ControleFluxoCaixa.Mongo.Documents;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Polly;
 using Polly.Retry;
 using Prometheus;
 using Serilog;
-using ILogger = Serilog.ILogger; // Resolve ambiguidade explicitamente
+using ILogger = Serilog.ILogger; 
 
 namespace ControleFluxoCaixa.API.Controllers
 {
     //[ApiController]
     [Route("api/[controller]")]
-    // [Authorize]
+    [Authorize]
     public class LancamentoController : ControllerBase
     {
         private readonly IMediator _mediator;

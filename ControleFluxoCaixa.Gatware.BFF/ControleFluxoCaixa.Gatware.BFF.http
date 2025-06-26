@@ -1,0 +1,6 @@
+@ControleFluxoCaixa.Gatware.BFF_HostAddress = http://localhost:5209
+
+GET {{ControleFluxoCaixa.Gatware.BFF_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
