@@ -143,4 +143,3 @@ Esta solução foi construída com foco em:
 * Boas práticas de autenticação, logs e métricas
 * Padrões modernos como CQRS, DDD e mensageria
 
-> Ideal para aplicações financeiras, SaaS administrativos, ERPs ou microsserviços distribuídos.
