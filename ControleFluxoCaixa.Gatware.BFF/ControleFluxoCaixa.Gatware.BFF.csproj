@@ -18,10 +18,6 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\ControleFluxoCaixa.Application\ControleFluxoCaixa.Application.csproj" />
-  </ItemGroup>
-
 	<!-- ✅ Bloco que copia os arquivos de configuração -->
 	<ItemGroup>
 		<None Update="Configuration\ocelot.json">

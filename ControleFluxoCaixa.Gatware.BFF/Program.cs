@@ -20,7 +20,19 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Backend For Frontend - BFF Api",
-        Version = "v1"
+        Version = "v1",
+        Description = "BFF para consumo seguro da API ControleFluxoCaixa",
+        Contact = new OpenApiContact
+        {
+            Name = "Flavio Nogueira",
+            Url = new Uri("https://startupinfosoftware.com.br"), 
+            Email = "flavio@startupinfosoftware.com.br"  
+        },
+        License = new OpenApiLicense
+        {
+            Name = "Licença MIT",
+            Url = new Uri("https://opensource.org/licenses/MIT")
+        }
     });
 
     // Suporte ao botão "Authorize"
