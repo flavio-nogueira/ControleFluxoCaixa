@@ -1,25 +1,7 @@
 ﻿// Importa as entidades de domínio relacionadas ao usuário
 using ControleFluxoCaixa.Domain.Entities.User;
-using ControleFluxoCaixa.Application.Commands.Auth.Login;
-using ControleFluxoCaixa.Application.Commands.Auth.RefreshToken;
-using ControleFluxoCaixa.Application.Commands.Auth.RegisterUser;
-using ControleFluxoCaixa.Application.Commands.Auth.UpdateUser;
-using ControleFluxoCaixa.Application.Commands.Auth.DeleteUser;
-using ControleFluxoCaixa.Application.Queries.Auth.GetAllUsers;
-using ControleFluxoCaixa.Application.Queries.Auth.GetUserById;
-using ControleFluxoCaixa.Application.DTOs.Auth;
-using ControleFluxoCaixa.Application.DTOs;
-using ControleFluxoCaixa.Application.Interfaces.Auth;
-using ControleFluxoCaixa.Application.Interfaces.Cache;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Http;
-using Xunit;
-using System.IdentityModel.Tokens.Jwt;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using System.Security.Claims;
 using MediatR;
+using Microsoft.AspNetCore.Identity;
 
 namespace ControleFluxoCaixa.Application.Commands.Auth.DeleteUser
 {

@@ -1,11 +1,14 @@
-﻿using ControleFluxoCaixa.Infrastructure.Context.Identity;
+﻿using ControleFluxoCaixa.Infrastructure.Context.FluxoCaixa;
+using ControleFluxoCaixa.Infrastructure.Context.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ControleFluxoCaixa.Infrastructure.IoC.DataBase
 {
-    // Torne esta classe estática
+    /// <summary>
+    /// Classe estática responsável por configurar e registrar os DbContexts da aplicação.
+    /// </summary>
     public static class DependencyInjectionDataBase
     {
         /// <summary>
@@ -19,13 +22,17 @@ namespace ControleFluxoCaixa.Infrastructure.IoC.DataBase
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            // 2) Configuração do DbContext para Identity (autenticação/usuários)    
-            // Recupera a connection string "IdentityConnection" no appsettings.json.
+            //Configuração do DbContext para Identity (autenticação/usuários)
             var identityConn = configuration.GetConnectionString("IdentityConnection")
-                             ?? throw new InvalidOperationException("Connection string 'IdentityConnection' não encontrada.");
-            // Registra o IdentityContext usando MySQL como provedor de dados do ASP.NET Identity.
+                               ?? throw new InvalidOperationException("Connection string 'IdentityConnection' não encontrada.");
             services.AddDbContext<IdentityDBContext>(options =>
                 options.UseMySql(identityConn, ServerVersion.AutoDetect(identityConn)));
+
+            //Configuração do DbContext para Fluxo de Caixa 
+            var fluxoConn = configuration.GetConnectionString("FluxoCaixaConnection")
+                            ?? throw new InvalidOperationException("Connection string 'FluxoCaixaConnection' não encontrada.");
+            services.AddDbContext<FluxoCaixaDbContext>(options =>
+                options.UseMySql(fluxoConn, ServerVersion.AutoDetect(fluxoConn)));
 
             return services;
         }

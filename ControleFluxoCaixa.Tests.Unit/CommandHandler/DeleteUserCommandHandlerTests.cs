@@ -1,13 +1,8 @@
 ﻿using ControleFluxoCaixa.Application.Commands.Auth.DeleteUser;
 using ControleFluxoCaixa.Domain.Entities.User;
 using ControleFluxoCaixa.Tests.Shared.Helpers;
-using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Moq;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace ControleFluxoCaixa.Tests.Unit.AuthTests
 {

@@ -1,12 +1,10 @@
 ﻿using ControleFluxoCaixa.Application.Commands.Auth.RegisterUser;
-using ControleFluxoCaixa.Application.DTOs.Auth;
 using ControleFluxoCaixa.Application.Interfaces.Cache;
 using ControleFluxoCaixa.Domain.Entities.User;
 using ControleFluxoCaixa.Tests.Shared.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
 {
@@ -16,12 +14,12 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
         public async Task Deve_registrar_usuario_com_sucesso()
         {
             // Arrange
-            var command = new RegisterUserCommand("valido@teste.com", "Senha123!", "Usuário Teste");       
+            var command = new RegisterUserCommand("valido@teste.com", "Senha123!", "Usuário Teste");
             var userManager = UserManagerMockHelper.CreateMock();
             userManager.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), command.Password))
                        .ReturnsAsync(IdentityResult.Success);
 
-            var cache = new Mock<IGenericCacheService>();
+            var cache = new Mock<ICacheService>();
             var logger = new Mock<ILogger<RegisterUserCommandHandler>>();
             var handler = new RegisterUserCommandHandler(userManager.Object, cache.Object, logger.Object);
 
@@ -44,7 +42,7 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
             userManager.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), command.Password))
                        .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "Senha fraca" }));
 
-            var cache = new Mock<IGenericCacheService>();
+            var cache = new Mock<ICacheService>();
             var logger = new Mock<ILogger<RegisterUserCommandHandler>>();
             var handler = new RegisterUserCommandHandler(userManager.Object, cache.Object, logger.Object);
 
@@ -66,7 +64,7 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
             userManager.Setup(x => x.CreateAsync(It.IsAny<ApplicationUser>(), command.Password))
                        .ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "E-mail inválido" }));
 
-            var cache = new Mock<IGenericCacheService>();
+            var cache = new Mock<ICacheService>();
             var logger = new Mock<ILogger<RegisterUserCommandHandler>>();
             var handler = new RegisterUserCommandHandler(userManager.Object, cache.Object, logger.Object);
 
@@ -76,6 +74,6 @@ namespace ControleFluxoCaixa.Tests.Unit.CommandHandler
 
             Assert.Equal("Falha ao criar usuário.", ex.Message);
         }
-        
+
     }
 }

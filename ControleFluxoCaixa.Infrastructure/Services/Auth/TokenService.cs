@@ -19,7 +19,7 @@ namespace ControleFluxoCaixa.Infrastructure.Services.Auth
 
         public Task<string> GenerateAccessTokenAsync(ApplicationUser user)
         {
-            // 1) Lê as configurações do JWT (com fallback caso faltem)
+            // Lê as configurações do JWT (com fallback caso faltem)
             var key = _configuration["JwtSettings:SecretKey"]
                       ?? throw new InvalidOperationException("JwtSettings:SecretKey não configurado");
 
@@ -27,7 +27,7 @@ namespace ControleFluxoCaixa.Infrastructure.Services.Auth
             var audience = _configuration["JwtSettings:Audience"] ?? "default-audience";
             var expiresInMins = _configuration.GetValue<int?>("JwtSettings:ExpiresInMinutes") ?? 60;
 
-            // 2) Cria os claims
+            // Cria os claims
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -36,7 +36,7 @@ namespace ControleFluxoCaixa.Infrastructure.Services.Auth
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-            // 3) Gera o token
+            // Gera o token
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 

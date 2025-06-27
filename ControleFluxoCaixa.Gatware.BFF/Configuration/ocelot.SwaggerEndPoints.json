@@ -1,0 +1,14 @@
+﻿{
+  "SwaggerEndPoints": [
+    {
+      "Key": "controlefluxo",
+      "Config": [
+        {
+          "Name": "ControleFluxoCaixa API",
+          "Version": "v1",
+          "Url": "http://host.docker.internal:5001/swagger/v1/swagger.json"
+        }
+      ]
+    }
+  ]
+}

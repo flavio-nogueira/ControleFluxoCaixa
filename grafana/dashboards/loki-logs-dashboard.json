@@ -1,0 +1,29 @@
+{
+  "uid": "loki-logs",
+  "title": "Dashboard - Logs e Métricas",
+  "tags": ["logs", "loki"],
+  "timezone": "browser",
+  "schemaVersion": 30,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "title": "Logs do Loki",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 10 },
+      "id": 1,
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "{job=~\".*\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showLabels": true,
+        "wrapLogMessage": false,
+        "dedupStrategy": "none"
+      }
+    }
+  ]
+}

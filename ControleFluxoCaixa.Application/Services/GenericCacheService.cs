@@ -1,80 +1,76 @@
 ﻿using ControleFluxoCaixa.Application.Interfaces.Cache;
-using Microsoft.Extensions.Caching.Distributed;
-using System.Text.Json;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
-namespace ControleFluxoCaixa.Application.Services
+namespace ControleFluxoCaixa.Infrastructure.Cache
 {
     /// <summary>
-    /// Serviço genérico de cache que utiliza IDistributedCache (como Redis) 
-    /// para armazenar qualquer tipo de objeto, com suporte a leitura, gravação e invalidação.
-    /// Ideal para cenários com padrão CQRS ou para reduzir consultas repetitivas a repositórios.
+    /// Implementação genérica de cache utilizando IMemoryCache.
+    /// Ideal para cenários onde o cache local em memória é suficiente.
     /// </summary>
-    public class GenericCacheService : IGenericCacheService
+    public class CacheService : ICacheService
     {
-        // Dependência principal: IDistributedCache (pode ser Redis, SQL Server, etc.)
-        private readonly IDistributedCache _cache;
+        private readonly IMemoryCache _memoryCache;
+        private readonly ILogger<CacheService> _logger;
 
         /// <summary>
-        /// Construtor que injeta a instância de cache distribuído.
+        /// Construtor do serviço de cache, injetando dependências do sistema.
         /// </summary>
-        /// <param name="cache">Instância de IDistributedCache configurada no DI.</param>
-        public GenericCacheService(IDistributedCache cache)
+        /// <param name="memoryCache">Serviço de cache em memória fornecido pelo ASP.NET Core.</param>
+        /// <param name="logger">Logger para registro de eventos e erros.</param>
+        public CacheService(IMemoryCache memoryCache, ILogger<CacheService> logger)
         {
-            _cache = cache;
+            _memoryCache = memoryCache;
+            _logger = logger;
         }
 
         /// <summary>
-        /// Tenta obter um valor do cache. Se não existir, executa a função fornecida (factory),
-        /// armazena o resultado no cache com o tempo de expiração indicado e retorna o valor.
+        /// Obtém um valor do cache ou cria e armazena usando a função factory se não existir.
         /// </summary>
-        /// <typeparam name="T">Tipo do objeto a ser armazenado e retornado.</typeparam>
-        /// <param name="key">Chave única usada para identificar o item no cache.</param>
-        /// <param name="factory">Função assíncrona que gera o valor caso o cache esteja vazio.</param>
-        /// <param name="duration">Duração da validade do cache (expiração absoluta).</param>
-        /// <param name="cancellationToken">Token opcional para cancelamento.</param>
-        /// <returns>Instância do objeto armazenado, vinda do cache ou da função factory.</returns>
-        public async Task<T?> GetOrSetAsync<T>(string key, Func<Task<T>> factory, TimeSpan duration, CancellationToken cancellationToken = default)
+        /// <typeparam name="T">Tipo do valor armazenado no cache.</typeparam>
+        /// <param name="key">Chave única que identifica o valor no cache.</param>
+        /// <param name="factory">Função que será executada para gerar o valor caso ele não exista.</param>
+        /// <param name="duration">Tempo de expiração do cache (Time-To-Live).</param>
+        /// <param name="cancellationToken">Token para cancelamento assíncrono (não usado aqui, mas mantido por compatibilidade).</param>
+        /// <returns>O valor recuperado ou criado.</returns>
+        public async Task<T?> GetOrSetAsync<T>(
+            string key,
+            Func<Task<T>> factory,
+            TimeSpan duration,
+            CancellationToken cancellationToken = default)
         {
-            // Tenta obter o valor do cache com base na chave informada
-            var cached = await _cache.GetStringAsync(key, cancellationToken);
-
-            // Se encontrou algo, desserializa do JSON para o tipo T e retorna
-            if (!string.IsNullOrEmpty(cached))
+            if (_memoryCache.TryGetValue<T>(key, out var cached))
             {
-                return JsonSerializer.Deserialize<T>(cached);
+                _logger.LogDebug("Valor encontrado no cache para a chave: {Key}", key);
+                return cached;
             }
 
-            // Se não encontrou, executa a função (factory) para obter o valor real
+            _logger.LogDebug("Valor não encontrado no cache. Executando factory para a chave: {Key}", key);
             var result = await factory();
 
-            // Se o resultado não for nulo, serializa para JSON e salva no cache
             if (result != null)
             {
-                var json = JsonSerializer.Serialize(result);
-
-                // Define a expiração absoluta com base na duração passada como parâmetro
-                var options = new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = duration
-                };
-
-                // Armazena no cache com a chave, valor serializado e opções de expiração
-                await _cache.SetStringAsync(key, json, options, cancellationToken);
+                _memoryCache.Set(key, result, duration);
+                _logger.LogDebug("Valor armazenado no cache com duração de {Duration} para a chave: {Key}", duration, key);
+            }
+            else
+            {
+                _logger.LogWarning("Factory retornou nulo para a chave: {Key}. Nada foi armazenado no cache.", key);
             }
 
-            // Retorna o resultado da factory (mesmo que nulo)
             return result;
         }
 
         /// <summary>
-        /// Remove um item do cache com base na chave fornecida.
-        /// Útil para invalidação manual após updates/deletes em bancos de dados.
+        /// Remove um item do cache pela chave especificada.
         /// </summary>
-        /// <param name="key">Chave do item que deve ser removido do cache.</param>
-        /// <param name="cancellationToken">Token opcional para cancelamento.</param>
-        public async Task RemoveAsync(string key, CancellationToken cancellationToken = default)
+        /// <param name="key">Chave do item a ser removido.</param>
+        /// <param name="cancellationToken">Token de cancelamento (não usado, mas mantido para compatibilidade).</param>
+        public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
         {
-            await _cache.RemoveAsync(key, cancellationToken);
+            _logger.LogInformation("Removendo item do cache com chave: {Key}", key);
+            _memoryCache.Remove(key);
+            return Task.CompletedTask;
         }
     }
 }

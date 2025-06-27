@@ -1,0 +1,178 @@
+﻿{
+  "Routes": [
+    {
+      "DownstreamPathTemplate": "/api/Lancamento/GetAll",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/lancamento/getall",
+      "UpstreamHttpMethod": [ "GET" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Lancamento/GetByTipo/{tipo}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/lancamento/getbytipo/{tipo}",
+      "UpstreamHttpMethod": [ "GET" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Lancamento/GetById/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/lancamento/getbyid/{id}",
+      "UpstreamHttpMethod": [ "GET" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Lancamento/Create",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/lancamento/create",
+      "UpstreamHttpMethod": [ "POST" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Lancamento/DeleteMany",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/lancamento/deletemany",
+      "UpstreamHttpMethod": [ "DELETE" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Lancamento/Saldos",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/lancamento/saldos",
+      "UpstreamHttpMethod": [ "GET" ],
+      "SwaggerKey": "controlefluxo"
+    },
+
+    // Endpoints de autenticação
+    {
+      "DownstreamPathTemplate": "/api/Auth/Login",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/auth/login",
+      "UpstreamHttpMethod": [ "POST" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Auth/Refresh",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/auth/refresh",
+      "UpstreamHttpMethod": [ "POST" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Auth/Register",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/auth/register",
+      "UpstreamHttpMethod": [ "POST" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Auth",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/auth",
+      "UpstreamHttpMethod": [ "PUT" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Auth",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/auth",
+      "UpstreamHttpMethod": [ "GET" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Auth/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/auth/{id}",
+      "UpstreamHttpMethod": [ "DELETE" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Auth/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/auth/{id}",
+      "UpstreamHttpMethod": [ "GET" ],
+      "SwaggerKey": "controlefluxo"
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "https://localhost:32768"
+  }
+}
