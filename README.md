@@ -17,7 +17,7 @@ Este repositório contém uma solução moderna para controle de fluxo de caixa,
 | `ControleFluxoCaixa.Application`       | Camada de Application Services com comandos, queries e validações                    |
 | `ControleFluxoCaixa.CrossCutting`      | Logs estruturados com Serilog, configurações e helpers                               |
 | `ControleFluxoCaixa.Domain`            | Entidades, enums e contratos da lógica de negócio                                    |
-| `ControleFluxoCaixa.Infrastructure`    | Integração com banco de dados MySQL usando Dapper                                    |
+| `ControleFluxoCaixa.Infrastructure`    | Integração com banco de dados MySQL                                                  |
 | `ControleFluxoCaixa.Messaging`         | Publicação em fila RabbitMQ                                                          |
 | `ControleFluxoCaixa.MongoDB`           | Leitura e persistência de dados consolidados no MongoDB                              |
 | `ControleFluxoCaixa.WorkerRabbitMq`    | Worker Service que consome mensagens do RabbitMQ e grava em MongoDB                  |
