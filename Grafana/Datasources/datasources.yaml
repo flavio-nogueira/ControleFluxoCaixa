@@ -1,0 +1,46 @@
+﻿# /etc/grafana/provisioning/datasources/datasources.yaml
+apiVersion: 1
+
+datasources:
+  #
+  # ─────────────────────────────────────────────
+  # ► Prometheus (métricas)
+  # ─────────────────────────────────────────────
+  #
+  - name: prometheus                        # Nome visível na interface
+    type: prometheus                        # Tipo da fonte (Prometheus)
+    uid: prometheus                         # UID estável para uso em dashboards JSON
+    access: proxy                           # Grafana age como proxy (recomendado em Docker)
+    url: http://prometheus:9090            # URL acessada pelo container do Grafana
+    isDefault: false                        # Não será a fonte padrão (Loki será)
+    editable: true                          # Permite editar via UI (opcional)
+
+  #
+  # ─────────────────────────────────────────────
+  # ► Loki (logs estruturados)
+  # ─────────────────────────────────────────────
+  #
+  - name: loki                              # Nome da fonte de dados na interface
+    type: loki                              # Tipo da fonte (Loki para logs)
+    uid: loki                               # UID único (usado em dashboards JSON)
+    access: proxy
+    url: http://loki:3100                   # URL do serviço no Docker
+    jsonData:
+      maxLines: 1000                        # Máximo de linhas exibidas por consulta
+    isDefault: true                         # Define Loki como a fonte padrão (Ctrl+Enter faz log query)
+    editable: true
+
+  #
+  # ─────────────────────────────────────────────
+  # ► Tempo (traces / rastreamento distribuído)
+  # ─────────────────────────────────────────────
+  #
+  - name: Tempo                             # Nome visível no Grafana
+    type: tempo                             # Tipo da fonte (tracing)
+    access: proxy
+    url: http://tempo:3200                  # Tempo escuta na porta 3200 (HTTP)
+    isDefault: false
+    jsonData:
+      httpMethod: GET                       # Pode ser GET ou POST (GET é default no Tempo)
+      serviceMap:
+        datasourceUid: prometheus           # Conecta com métricas do Prometheus nos "service maps"

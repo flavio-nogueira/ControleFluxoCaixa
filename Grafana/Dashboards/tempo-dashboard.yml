@@ -1,0 +1,10 @@
+apiVersion: 1
+
+providers:
+  - name: 'Tracing'
+    folder: 'Tracing'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
+using System;
 using System.Reflection;
 
 namespace ControleFluxoCaixa.Infrastructure.IoC.Swagger
@@ -19,25 +20,7 @@ namespace ControleFluxoCaixa.Infrastructure.IoC.Swagger
             services.AddEndpointsApiExplorer();
 
             services.AddSwaggerGen(c =>
-            {
-
-                // ✅ Adiciona servidor conforme ambiente (container ou local)
-                if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true")
-                {
-                    c.AddServer(new OpenApiServer
-                    {
-                        Url = "https://controlefluxocaixa_api"
-                    });
-                }
-                else
-                {
-                    c.AddServer(new OpenApiServer
-                    {
-                        Url = "https://localhost:5001"
-                    });
-                }
-
-
+            {             
                 // Definição do documento OpenAPI/Swagger
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
@@ -47,7 +30,7 @@ namespace ControleFluxoCaixa.Infrastructure.IoC.Swagger
                     Contact = new OpenApiContact
                     {
                         Name = "Flavio Nogueira",
-                        Email = "flavio.nogueira.alfa@outlook.com.br",
+                        Email = "flavio@startupinfosoftware.com.br",
                         Url = new Uri("tel:+5511999999999") // Nota: URI tipo "tel:" é válido, mas raramente usado na seção de contato
                     }
                 });

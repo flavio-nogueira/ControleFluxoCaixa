@@ -170,7 +170,47 @@
       "UpstreamPathTemplate": "/bff/auth/{id}",
       "UpstreamHttpMethod": [ "GET" ],
       "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Lancamento/GetAllPaginado",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/lancamento/getallpaginado",
+      "UpstreamHttpMethod": [ "GET" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Lancamento/GetByTipoPaginado/{tipo}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/lancamento/getbytipopaginado/{tipo}",
+      "UpstreamHttpMethod": [ "GET" ],
+      "SwaggerKey": "controlefluxo"
+    },
+    {
+      "DownstreamPathTemplate": "/api/Lancamento/SaldosPaginado",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "host.docker.internal",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/bff/lancamento/saldospaginado",
+      "UpstreamHttpMethod": [ "GET" ],
+      "SwaggerKey": "controlefluxo"
     }
+
   ],
   "GlobalConfiguration": {
     "BaseUrl": "https://localhost:32768"
