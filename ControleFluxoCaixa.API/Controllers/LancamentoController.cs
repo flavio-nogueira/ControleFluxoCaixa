@@ -117,8 +117,6 @@ namespace ControleFluxoCaixa.API.Controllers
             }
         }
 
-
-
         /// <summary>
         /// Retorna os lançamentos de um determinado tipo (Crédito ou Débito).
         /// </summary>
@@ -384,9 +382,9 @@ namespace ControleFluxoCaixa.API.Controllers
         [ProducesResponseType(typeof(LancamentoResponseDto), 200)]
         [ProducesResponseType(typeof(LancamentoResponseDto), 500)]
         public async Task<ActionResult<LancamentoResponseDto>> GetSaldos(
-    [FromQuery] DateTime de,
-    [FromQuery] DateTime ate,
-    CancellationToken ct)
+        [FromQuery] DateTime de,
+        [FromQuery] DateTime ate,
+        CancellationToken ct)
         {
             var timer = RequestDuration.WithLabels("GET", "GetSaldosConsolidados", "").NewTimer();
             GetAllCounter.Inc();
@@ -443,6 +441,204 @@ namespace ControleFluxoCaixa.API.Controllers
             }
         }
 
+        // -----------------------------------------------------------------------------
+        // 1) Retorna TODAS as páginas de lançamentos (paginado)
+        //     Ex: /api/Lancamento/GetAllPaginado?page=1&pageSize=20
+        // -----------------------------------------------------------------------------
+        [HttpGet("GetAllPaginado")]
+        [ProducesResponseType(typeof(LancamentoResponseDto), 200)]
+        public async Task<ActionResult<LancamentoResponseDto>> GetAllPaginado(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var timer = RequestDuration.WithLabels("GET", "GetAllPaginado", "").NewTimer();
+            GetAllCounter.Inc();
+
+            try
+            {
+                var allLanc = await RetryPolicy.ExecuteAsync(() =>
+                    _cacheService.GetOrSetAsync(
+                        "lancamentos:all",
+                        async () => await _mediator.Send(new GetAllLancamentosQuery(), cancellationToken),
+                        TimeSpan.FromMinutes(10),
+                        cancellationToken));
+
+                var total = allLanc.Count();
+                var totalPaginas = (int)Math.Ceiling(total / (double)pageSize);
+
+                var resultado = allLanc
+                    .OrderByDescending(l => l.Data)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Cast<object>()
+                    .ToList();
+
+                timer.ObserveDuration();
+
+                return Ok(new LancamentoResponseDto
+                {
+                    Mensagem = "Consulta paginada com sucesso",
+                    Sucesso = true,
+                    Registros = total,
+                    PaginaAtual = page,
+                    TotalPaginas = totalPaginas,
+                    Retorno = resultado
+                });
+            }
+            catch (Exception ex)
+            {
+                timer.ObserveDuration();
+                _logger.Error(ex, "Erro interno em GetAllPaginado");
+
+                return StatusCode(500, new LancamentoResponseDto
+                {
+                    Mensagem = "Erro interno",
+                    Sucesso = false,
+                    Registros = 0
+                });
+            }
+        }
+
+        // -----------------------------------------------------------------------------
+        // 2) Retorna lançamentos por Tipo (Crédito/Débito) de forma paginada
+        //     Ex: /api/Lancamento/GetByTipoPaginado/1?page=2&pageSize=10
+        // -----------------------------------------------------------------------------
+        [HttpGet("GetByTipoPaginado/{tipo}")]
+        [ProducesResponseType(typeof(LancamentoResponseDto), 200)]
+        public async Task<ActionResult<LancamentoResponseDto>> GetByTipoPaginado(
+            TipoLancamento tipo,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var timer = RequestDuration.WithLabels("GET", "GetByTipoPaginado", "").NewTimer();
+
+            if (!Enum.IsDefined(typeof(TipoLancamento), tipo))
+            {
+                return BadRequest(new LancamentoResponseDto
+                {
+                    Mensagem = "Tipo inválido.",
+                    Sucesso = false,
+                    Registros = 0
+                });
+            }
+
+            try
+            {
+                var lancamentos = await RetryPolicy.ExecuteAsync(() =>
+                    _cacheService.GetOrSetAsync(
+                        $"lancamentos:tipo:{tipo}",
+                        async () => await _mediator.Send(new GetLancamentosByTipoQuery(tipo), cancellationToken),
+                        TimeSpan.FromMinutes(10),
+                        cancellationToken));
+
+                var total = lancamentos.Count();
+                var totalPaginas = (int)Math.Ceiling(total / (double)pageSize);
+
+                var resultado = lancamentos
+                    .OrderByDescending(l => l.Data)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Cast<object>()
+                    .ToList();
+
+                timer.ObserveDuration();
+
+                return Ok(new LancamentoResponseDto
+                {
+                    Mensagem = "Consulta paginada com sucesso",
+                    Sucesso = true,
+                    Registros = total,
+                    PaginaAtual = page,
+                    TotalPaginas = totalPaginas,
+                    Retorno = resultado
+                });
+            }
+            catch (Exception ex)
+            {
+                timer.ObserveDuration();
+                _logger.Error(ex, "Erro interno em GetByTipoPaginado");
+
+                return StatusCode(500, new LancamentoResponseDto
+                {
+                    Mensagem = "Erro interno",
+                    Sucesso = false,
+                    Registros = 0
+                });
+            }
+        }
+
+        // -----------------------------------------------------------------------------
+        // 3) Retorna saldos consolidados paginados
+        //     Ex: /api/Lancamento/saldosPaginado?de=2025-01-01&ate=2025-06-30&page=1&pageSize=15
+        // -----------------------------------------------------------------------------
+        [HttpGet("saldosPaginado")]
+        [ProducesResponseType(typeof(LancamentoResponseDto), 200)]
+        public async Task<ActionResult<LancamentoResponseDto>> GetSaldosPaginado(
+            [FromQuery] DateTime de,
+            [FromQuery] DateTime ate,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken ct = default)
+        {
+            var timer = RequestDuration.WithLabels("GET", "GetSaldosPaginado", "").NewTimer();
+
+            if (de > ate)
+            {
+                return BadRequest(new LancamentoResponseDto
+                {
+                    Mensagem = "'de' não pode ser maior que 'ate'.",
+                    Sucesso = false,
+                    Registros = 0
+                });
+            }
+
+            try
+            {
+                var cacheKey = $"saldos:{de:yyyyMMdd}:{ate:yyyyMMdd}";
+                var saldos = await RetryPolicy.ExecuteAsync(() =>
+                    _cacheService.GetOrSetAsync(
+                        cacheKey,
+                        async () => await _mediator.Send(new GetSaldosConsolidadosQuery(de, ate), ct),
+                        TimeSpan.FromMinutes(10),
+                        ct));
+
+                var total = saldos.Count;
+                var totalPaginas = (int)Math.Ceiling(total / (double)pageSize);
+
+                var resultado = saldos
+                    .OrderBy(s => s.Date) // string no formato yyyy-MM-dd
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Cast<object>()
+                    .ToList();
+
+                timer.ObserveDuration();
+
+                return Ok(new LancamentoResponseDto
+                {
+                    Mensagem = "Consulta paginada com sucesso",
+                    Sucesso = true,
+                    Registros = total,
+                    PaginaAtual = page,
+                    TotalPaginas = totalPaginas,
+                    Retorno = resultado
+                });
+            }
+            catch (Exception ex)
+            {
+                timer.ObserveDuration();
+                _logger.Error(ex, "Erro interno em GetSaldosPaginado");
+
+                return StatusCode(500, new LancamentoResponseDto
+                {
+                    Mensagem = "Erro interno",
+                    Sucesso = false,
+                    Registros = 0
+                });
+            }
+        }
 
     }
 }

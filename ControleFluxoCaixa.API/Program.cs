@@ -1,4 +1,10 @@
-﻿// Importa os DTOs da aplicação
+﻿// -----------------------------------------------------------------------------
+// Program.cs  |  ControleFluxoCaixa.API
+// -----------------------------------------------------------------------------
+
+// Importa os DTOs da aplicação
+using ControleFluxoCaixa.API.Middlewares;
+using ControleFluxoCaixa.API.Tracing;
 using ControleFluxoCaixa.Application.DTOs;
 
 // Importa as configurações fortemente tipadas da aplicação
@@ -22,51 +28,49 @@ using Prometheus;
 
 // Bibliotecas de logging estruturado Serilog
 using Serilog;
-using Serilog.Events;
-using Serilog.Formatting.Compact;
+
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 // Tipos relacionados ao rate limiting
 using System.Threading.RateLimiting;
+using Serilog.Enrichers.Span;
 
-// Cria o builder da aplicação ASP.NET Core
+// -----------------------------------------------------------------------------
+// CRIA O BUILDER DA APLICAÇÃO ASP.NET CORE
+// -----------------------------------------------------------------------------
 var builder = WebApplication.CreateBuilder(args);
 
-// Mapeia a seção "Loki" do appsettings.json para a classe fortemente tipada "LokiSettings"
-var lokiSettings = builder.Configuration.GetSection("Loki").Get<LokiSettings>()!;
+// (Opcional) Continua mapeando a seção "Loki" se você usar esses valores em outro ponto
+var lokiSettings = builder.Configuration.GetSection("Loki").Get<LokiSettings>();
 
 // ============================
 // CONFIGURAÇÃO DO SERILOG
 // ============================
 
-// Inicializa e configura o logger Serilog
+// Cria o logger global lendo a configuração única do arquivo JSON
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug() // Log mínimo = Debug (pode ser Info em produção)
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning) // Reduz ruído dos logs internos do .NET
-    .Enrich.FromLogContext() // Adiciona contexto de requisição (ex: TraceId, IP, etc.)
-
-    // Exibe logs estruturados no console (JSON compacto)
-    .WriteTo.Console(new RenderedCompactJsonFormatter())
-
-    // Grava logs em arquivo com rotação diária e retenção de 7 dias
-    .WriteTo.File(
-        path: "logs-fallback/log-.json",
-        formatter: new RenderedCompactJsonFormatter(),
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 7,
-        shared: true
-    )
-
-    // Envia logs de forma resiliente para o Loki, com buffer no disco
-    .WriteTo.DurableHttpUsingTimeRolledBuffers(
-        requestUri: lokiSettings.Uri,
-        bufferBaseFileName: lokiSettings.BufferPath,
-        period: TimeSpan.FromSeconds(lokiSettings.PeriodSeconds),
-        textFormatter: new RenderedCompactJsonFormatter()
-    )
+    .ReadFrom.Configuration(new ConfigurationBuilder()
+        .AddJsonFile("Serialog/serilog.json", optional: false, reloadOnChange: true)
+        .AddJsonFile($"Serialog/serilog.{builder.Environment.EnvironmentName}.json", optional: true)
+        .Build())
+        .Enrich.WithSpan()
     .CreateLogger();
 
-// Remove os loggers padrões e adiciona o Serilog como provedor exclusivo de logs
-builder.Logging.ClearProviders().AddSerilog(dispose: true);
+// Substitui o logger padrão do ASP.NET Core por Serilog
+builder.Host.UseSerilog();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", builder =>
+    {
+        builder
+            .SetIsOriginAllowed(_ => true) // Libera qualquer origem, mesmo para credenciais
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials(); // Permite envio de cookies, headers de autenticação, etc.
+    });
+});
 
 // ============================
 // REGISTRO DE SERVIÇOS
@@ -78,27 +82,58 @@ builder.Services.AddApplicationServices(builder.Configuration);
 // Registra HealthChecks e métricas com base nas configurações
 builder.Services.AddObservability(builder.Configuration);
 
+// Adiciona suporte a OpenTelemetry Tracing
+builder.Services.AddOpenTelemetry() // Ativa o OpenTelemetry para este projeto
+    .ConfigureResource(resource => // Define as informações básicas do serviço monitorado (nome, versão, ambiente, etc.)
+    {
+        var otelSection = builder.Configuration.GetSection("OpenTelemetry"); // Lê as configurações do appsettings.json (opcional)
+
+        resource
+            .AddService(
+                serviceName: otelSection.GetValue<string>("ServiceName") ?? "ControleFluxoCaixa.API", // Nome do serviço (aparece nos dashboards)
+                serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0")    // Versão da aplicação
+            .AddAttributes(new[] // Atributos extras que enriquecem as métricas/traces (como "ambiente de implantação")
+            {
+                new KeyValuePair<string, object>(
+                    "deployment.environment", // Nome do atributo
+                    otelSection.GetValue<string>("Environment") ?? builder.Environment.EnvironmentName // Valor (pega do appsettings ou do ambiente)
+                )
+            });
+    })
+    .WithTracing(tracing => // Ativa o rastreamento (Tracing) distribuído
+    {
+        tracing
+            .AddAspNetCoreInstrumentation() // Captura requisições HTTP internas do ASP.NET Core (ex: Controllers, Middlewares, etc.)
+            .AddHttpClientInstrumentation() // Captura chamadas feitas via HttpClient para outros serviços
+            .AddSqlClientInstrumentation()  // Captura comandos SQL executados via SqlClient (ex: SELECT, INSERT, etc.)
+
+            .AddOtlpExporter(opt => // Exporta os dados para um endpoint OTLP (OpenTelemetry Collector)
+            {
+                opt.Endpoint = new Uri("http://otel-collector:4317"); // Endereço do OTEL Collector via GRPC (porta 4317 é padrão)
+                opt.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc; // Define o protocolo GRPC (mais leve e eficiente)
+            });
+    });
+
 // ============================
 // RATE LIMITING
 // ============================
 
 // Lê as configurações da seção "RateLimiting" do appsettings.json
 builder.Services.Configure<RateLimitingSettings>(builder.Configuration.GetSection("RateLimiting"));
-var settings = builder.Configuration.GetSection("RateLimiting").Get<RateLimitingSettings>();
+var rateSettings = builder.Configuration.GetSection("RateLimiting").Get<RateLimitingSettings>();
 
 // Registra o RateLimiter como middleware global
 builder.Services.AddRateLimiter(options =>
 {
-    // Define um limitador global usando janela fixa (FixedWindow)
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", // IP do cliente
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = settings.PermitLimit,               // Quantidade máxima de requisições
-                Window = TimeSpan.FromMinutes(settings.WindowInMinutes), // Janela de tempo para o limite
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst, // Ordem de espera na fila (FIFO)
-                QueueLimit = settings.QueueLimit                  // Tamanho da fila de espera
+                PermitLimit = rateSettings.PermitLimit,
+                Window = TimeSpan.FromMinutes(rateSettings.WindowInMinutes),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = rateSettings.QueueLimit
             }));
 
     // Callback para logar requisições que excederam o limite
@@ -110,7 +145,7 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
-// Política nomeada adicional, útil se desejar usar `.RequireRateLimiting("HourlyPolicy")` por rota
+// Política nomeada adicional, útil por rota
 builder.Services.AddRateLimiter(options =>
 {
     options.AddPolicy("HourlyPolicy", httpContext =>
@@ -118,23 +153,22 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString(),
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = settings.PermitLimit,
-                Window = TimeSpan.FromMinutes(settings.WindowInMinutes),
+                PermitLimit = rateSettings.PermitLimit,
+                Window = TimeSpan.FromMinutes(rateSettings.WindowInMinutes),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = settings.QueueLimit
+                QueueLimit = rateSettings.QueueLimit
             }));
 });
 
-// ============================
+// -----------------------------------------------------------------------------
 // CONSTRUÇÃO DO APP
-// ============================
-
+// -----------------------------------------------------------------------------
 var app = builder.Build();
 
-// Middleware de captura de exceções personalizadas (deve vir antes dos handlers da pipeline)
+// Middleware de captura de exceções personalizadas
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// Aplica migrações do banco de dados automaticamente e executa seeds (como criação do admin)
+// Aplica migrações do banco de dados automaticamente e executa seeds
 await MigrationInitializer.ApplyMigrationsAsync(app);
 
 // Ativa o Swagger apenas em ambiente de desenvolvimento
@@ -147,39 +181,43 @@ if (app.Environment.IsDevelopment())
 // Redireciona HTTP para HTTPS
 app.UseHttpsRedirection();
 
-// Habilita autenticação e autorização (com suporte a JWT, cookies, etc.)
+// Middleware de enriquecimento de logs (endpoint, method, user, status)
+app.UseMiddleware<LokiEnrichmentMiddleware>();
+
+app.UseCors("AllowAll"); // <-- Aplica o CORS corretamente antes da autenticação
+
+// Autenticação e autorização
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Exposição das métricas Prometheus
-app.UseMetricServer(); // `/metrics` endpoint Prometheus
-app.UseHttpMetrics();  // Coleta estatísticas por endpoint HTTP
+// Exposição de métricas Prometheus
+app.UseMetricServer(); // `/metrics`
+app.UseHttpMetrics();  // Histograma por endpoint
 
-// Aplica política de CORS definida no projeto
-app.UseCors("CorsPolicy");
+// CORS
+//app.UseCors("CorsPolicy");
+app.UseCors("AllowAll");
 
-// Ativa o middleware de Rate Limiting para toda a aplicação (com base em política global)
+// Rate Limiting
 app.UseRateLimiter();
 
-// Mapeia todos os endpoints de controllers da API
+// Controllers
 app.MapControllers();
 
-// Endpoint de health check para verificar se a aplicação está viva
+// Endpoints de Health Check
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
-
-// Endpoint de health check para readiness (serviços externos prontos)
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = hc => hc.Tags.Contains("ready"),
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
 
-// Inicializa o servidor web e começa a escutar requisições
+// Inicia o servidor
 await app.RunAsync();
 
-// Necessário para permitir testes de integração com WebApplicationFactory
+// Necessário para testes de integração com WebApplicationFactory
 public partial class Program { }

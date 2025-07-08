@@ -11,11 +11,20 @@
     <DockerComposeProjectName>arquiteto-solucoes</DockerComposeProjectName>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="blackbox.yml" />
     <None Include="docker-compose.override.yml">
       <DependentUpon>docker-compose.yml</DependentUpon>
     </None>
     <None Include="docker-compose.yml" />
     <None Include=".dockerignore" />
+    <None Include="dockerfile.prometheus" />
+    <None Include="Grafana\Dashboards\dashboards.yaml" />
+    <None Include="Grafana\Dashboards\Logs-Detalhados-Observabilidade.json" />
+    <None Include="Grafana\Datasources\datasources.yaml" />
+    <None Include="loki-config.yaml" />
     <None Include="mysql_exporter_app.cnf" />
+    <None Include="otel\otel-collector-config.yaml" />
+    <None Include="prometheus.yml" />
+    <None Include="promtail-config.yaml" />
   </ItemGroup>
 </Project>

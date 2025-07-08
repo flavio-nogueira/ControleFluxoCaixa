@@ -1,0 +1,103 @@
+﻿{
+  "Serilog": {
+    // Nível mínimo global de log
+    "MinimumLevel": {
+      // Todos os logs com nível Debug ou superior serão registrados
+      "Default": "Debug",
+
+      // Para logs do .NET (como Microsoft.AspNetCore), registrará apenas Warning+
+      "Override": {
+        "Microsoft": "Warning"
+      }
+    },
+
+    // Enriquecedores: adicionam metadados úteis aos logs
+    "Enrich": [
+      // Captura automaticamente valores do contexto como endpoint, method, user...
+      "FromLogContext",
+
+      // Envia traceId, spanId e operação para facilitar rastreabilidade (OpenTelemetry/Grafana Tempo)
+      "WithSpan"
+    ],
+
+    // Sinks: destinos onde os logs serão enviados
+    "WriteTo": [
+
+      // Exibe logs no console do terminal com formato JSON compacto (útil para dev e docker logs)
+      {
+        "Name": "Console",
+        "Args": {
+          "formatter": "Serilog.Formatting.Compact.RenderedCompactJsonFormatter, Serilog.Formatting.Compact"
+        }
+      },
+
+      // Salva logs em arquivo local com rotação diária e retenção de até 7 dias
+      {
+        "Name": "File",
+        "Args": {
+          "path": "logs-fallback/log-.json", // Caminho e prefixo dos arquivos de log
+          "formatter": "Serilog.Formatting.Compact.RenderedCompactJsonFormatter, Serilog.Formatting.Compact",
+          "rollingInterval": "Day", // Um arquivo novo por dia
+          "retainedFileCountLimit": 7, // Mantém apenas os últimos 7 dias
+          "shared": true // Permite acesso simultâneo por múltiplos processos
+        }
+      },
+
+      // Bufferiza os logs em disco antes de enviá-los para o Loki (caso ele esteja offline, evita perda)
+      {
+        "Name": "DurableHttpUsingTimeRolledBuffers",
+        "Args": {
+          // URL do Loki receiver endpoint
+          "requestUri": "http://loki:3100",
+
+          // Local do buffer em disco temporário caso o Loki esteja fora
+          "bufferBaseFileName": "Logs/LokiBuffer",
+
+          // Intervalo entre tentativas de envio dos buffers para o Loki
+          "period": "00:00:15",
+
+          // Usa o mesmo formato JSON compacto para os dados bufferizados
+          "textFormatter": "Serilog.Formatting.Compact.RenderedCompactJsonFormatter, Serilog.Formatting.Compact"
+        }
+      },
+
+      // Envia logs diretamente para o Loki (sem buffer) – útil para análise em tempo real no Grafana
+      {
+        "Name": "GrafanaLoki",
+        "Args": {
+          // URL do Loki
+          "uri": "http://loki:3100",
+
+          // Labels fixos (stream identifiers para o Loki)
+          "labels": [
+            {
+              "key": "app",
+              "value": "ControleFluxoCaixa"
+            }, // Nome da aplicação
+            {
+              "key": "env",
+              "value": "dev"
+            }, // Ambiente (dev, homolog, prod)
+            {
+              "key": "service_name",
+              "value": "ControleFluxoCaixa"
+            } // Nome lógico para rastrear microserviço
+          ],
+
+          // Labels dinâmicos — extraídos automaticamente de `LogContext` (via Middleware)
+          "propertiesAsLabels": [
+            "endpoint", // ex: "api/lancamento/create"
+            "method", // ex: GET, POST
+            "user", // usuário autenticado (capturado via `HttpContext.User`)
+            "status" // código HTTP (200, 401, 500...)
+          ]
+        }
+      }
+    ],
+
+    // Propriedades fixas que serão adicionadas automaticamente a todos os logs
+    "Properties": {
+      "env": "dev" // Ambiente atual (usado como metadado em todos os logs)
+    }
+  }
+}
