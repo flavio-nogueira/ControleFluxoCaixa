@@ -1,0 +1,14 @@
+apiVersion: 1  # Versão da API de provisionamento do Grafana. Sempre use 1.
+
+providers:  # Lista de "provedores" de dashboards (você pode ter vários se quiser).
+  - name: LokiDashboards  # Nome interno deste provedor (pode ser qualquer identificador).
+    orgId: 1              # ID da organização no Grafana (por padrão é 1 no OSS).
+    folder: "Observabilidade"  # Nome da pasta onde os dashboards vão aparecer na interface.
+    type: file                 # Tipo de provisionamento: "file" indica que será lido do sistema de arquivos.
+    disableDeletion: false     # Se true, impede que os dashboards provisionados sejam deletados via UI.
+    editable: true             # Se true, permite editar os dashboards via UI (ainda que sejam provisionados por arquivo).
+    updateIntervalSeconds: 10  # A cada quantos segundos o Grafana verifica se houve mudanças no diretório.
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      # Caminho absoluto dentro do container onde os arquivos .json dos dashboards devem estar.
+      # É esse diretório que você precisa montar no Docker com os arquivos de dashboards reais (.json).v2

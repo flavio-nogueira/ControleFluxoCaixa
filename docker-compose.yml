@@ -20,6 +20,24 @@ services:
     networks:
       - app-net
 
+  otel-collector:
+     image: otel/opentelemetry-collector:latest
+     command: ["--config=/etc/otel-collector-config.yaml"]
+     volumes:
+      - ./otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+     ports:
+      - "8888:8888"  # Health
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+      - "9464:9464"  # Prometheus metrics
+     depends_on:
+      - prometheus
+     networks:
+      - app-net
+
+ 
+
+
   # Exportador Prometheus para o mysql_identity
   # mysqld_exporter_identity:
   #   image: prom/mysqld-exporter:latest
@@ -177,10 +195,14 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
+      #GF_INSTALL_PLUGINS: grafana-tempo-datasource  # ← plugin
     depends_on:
       - prometheus
     ports:
       - "3000:3000"
+    volumes:
+      - ./Grafana/Datasources:/etc/grafana/provisioning/datasources
+      - ./Grafana/Dashboards:/etc/grafana/provisioning/dashboards
     networks:
       - app-net
 

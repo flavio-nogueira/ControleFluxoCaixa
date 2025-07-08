@@ -32,5 +32,17 @@
         /// Cada erro possui informações como ID, data, valor e mensagem de erro.
         /// </summary>
         public List<LancamentoErroDto> Erros { get; set; } = new();
+
+        /// <summary>
+        /// Número da página atual retornada na consulta paginada.
+        /// Nulo quando a operação não é paginada.
+        /// </summary>
+        public int? PaginaAtual { get; set; }
+
+        /// <summary>
+        /// Número total de páginas disponíveis com base no tamanho da página e número total de registros.
+        /// Nulo quando a operação não é paginada.
+        /// </summary>
+        public int? TotalPaginas { get; set; }
     }
 }

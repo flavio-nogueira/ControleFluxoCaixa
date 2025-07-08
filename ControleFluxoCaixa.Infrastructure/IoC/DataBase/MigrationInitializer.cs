@@ -22,7 +22,7 @@ public static class MigrationInitializer
         var logger = services.GetRequiredService<ILoggerFactory>()
                              .CreateLogger("MigrationInitializer");
 
-        //  MIGRATIONS: Banco Identity 
+        // MIGRATIONS: Banco Identity 
         try
         {
             var identityDb = services.GetRequiredService<IdentityDBContext>();
@@ -66,7 +66,7 @@ public static class MigrationInitializer
             logger.LogError(ex, "Erro ao aplicar migrations de Fluxo de Caixa.");
         }
 
-        // === SEED: Usuário Administrador ===
+        // SEED: Usuário Administrador ===
         try
         {
             var seeder = services.GetRequiredService<SeedIdentityAdminUser>();

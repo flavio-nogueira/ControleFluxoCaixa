@@ -1,21 +1,45 @@
 global:
-  scrape_interval: 15s
+  scrape_interval: 15s  # Coleta métricas a cada 15 segundos
 
 scrape_configs:
+  # ======================================================
+  # JOB 1: Exportador do MySQL (mysqld-exporter)
+  # Coleta métricas como conexões, buffers e queries
+  # ======================================================
   - job_name: 'mysql'
     static_configs:
       - targets: ['mysqld-exporter:9104']
 
+  # ======================================================
+  # JOB 2: Exportador do Redis (redis_exporter)
+  # Métricas de uso de memória, comandos, conexões etc.
+  # ======================================================
   - job_name: 'redis'
     static_configs:
       - targets: ['redis_exporter:9121']
 
+  # ======================================================
+  # JOB 3: API ControleFluxoCaixa (.NET)
+  # Coleta as métricas expostas via /metrics pelo ASP.NET Core
+  # ======================================================
   - job_name: 'controlefluxocaixa-api'
     metrics_path: /metrics
     scheme: http
     static_configs:
-      - targets: ['api:80']
+      - targets: ['api:80']  # Nome do serviço da API no Docker Compose
 
+  # ======================================================
+  # JOB 4: Autocoleta do Prometheus
+  # Permite monitorar o próprio Prometheus
+  # ======================================================
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+
+  # ======================================================
+  # JOB 5: OpenTelemetry Collector
+  # Coleta métricas expostas na porta 9464 (Prometheus receiver)
+  # ======================================================
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:9464']  # Porta padrão de exposição do OTEL Collector
